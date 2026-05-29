@@ -1,0 +1,75 @@
+{
+  "bank_success_files": 5,
+  "bank_failed_files": 1,
+  "bank_new_rows": 92,
+  "seibi_new_rows": 24,
+  "history_rows": 6,
+  "learning_rows": 0,
+  "bank_details": [
+    {
+      "file": "20260508.2hori .xlsx.csv",
+      "status": "success",
+      "records": 3,
+      "detected": 3,
+      "duplicates": 0
+    },
+    {
+      "file": "20260508.1hori .xlsx.csv",
+      "status": "success",
+      "records": 13,
+      "detected": 13,
+      "duplicates": 0
+    },
+    {
+      "file": "20260507.2hori .xlsx.csv",
+      "status": "success",
+      "records": 1,
+      "detected": 7,
+      "duplicates": 6
+    },
+    {
+      "file": "20260507.1hori .xlsx.csv",
+      "status": "failed",
+      "reasons": [
+        "重複取込の疑い"
+      ],
+      "detected": 7,
+      "records": 0,
+      "duplicates": 7
+    },
+    {
+      "file": "20260430.2hori .xlsx.csv",
+      "status": "success",
+      "records": 9,
+      "detected": 9,
+      "duplicates": 0
+    },
+    {
+      "file": "20260430.1hori .xlsx.csv",
+      "status": "success",
+      "records": 66,
+      "detected": 68,
+      "duplicates": 2
+    }
+  ],
+  "seibi_details": [
+    {
+      "file": "seibireport (2026.0427).csv",
+      "status": "success",
+      "records": 18,
+      "duplicates": 83
+    },
+    {
+      "file": "seibireport (20260430).csv",
+      "status": "success",
+      "records": 6,
+      "duplicates": 50
+    },
+    {
+      "file": "seibireport (20260501-1).csv",
+      "status": "success",
+      "records": 0,
+      "duplicates": 51
+    }
+  ]
+}

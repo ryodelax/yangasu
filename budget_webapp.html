@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title>Budget Orbit</title>
+  <style>
+    <?!= css ?>
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-left"></div>
+  <div class="ambient ambient-right"></div>
+
+  <main class="app-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Budget Orbit</p>
+        <h1>予算管理と収益目標を、どこでも確認。</h1>
+        <p class="hero-copy">GAS とスプレッドシートに保存するので、スマホでも PC でも同じ URL で使えます。</p>
+      </div>
+      <div class="month-panel">
+        <label for="monthPicker">対象月</label>
+        <input id="monthPicker" type="month">
+        <p id="monthCaption" class="month-caption"></p>
+        <a id="sheetLink" class="sheet-link" href="#" target="_blank" rel="noopener noreferrer">保存先シートを開く</a>
+      </div>
+    </section>
+
+    <section class="stats-grid" id="statsGrid"></section>
+    <section class="insight-grid">
+      <article class="panel">
+        <div class="panel-heading compact-heading">
+          <div>
+            <p class="section-label">Trend Chart</p>
+            <h2>収入と支出の折れ線グラフ</h2>
+          </div>
+        </div>
+        <div id="chartLegend" class="chart-legend"></div>
+        <p id="chartSummary" class="chart-summary"></p>
+        <div id="trendChart" class="trend-chart"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading compact-heading">
+          <div>
+            <p class="section-label">Annual Pace</p>
+            <h2>年間ペース</h2>
+          </div>
+        </div>
+        <div id="annualStatsGrid" class="annual-stats-grid"></div>
+        <p id="annualNote" class="annual-note"></p>
+      </article>
+    </section>
+
+    <section class="panel mobile-panel">
+      <div class="panel-heading compact-heading">
+        <div>
+          <p class="section-label">Quick Capture</p>
+          <h2>スマホ用クイック入力</h2>
+        </div>
+      </div>
+      <form id="quickEntryForm" class="quick-entry-form">
+        <div class="quick-type-switch" role="group" aria-label="入出金区分">
+          <button type="button" class="type-toggle active" data-quick-type="expense">支出</button>
+          <button type="button" class="type-toggle" data-quick-type="income">収入</button>
+        </div>
+        <div class="quick-grid">
+          <label class="field-block"><span>日付</span><input name="date" type="date" required></label>
+          <label class="field-block"><span>金額</span><input name="amount" type="number" min="0" step="1" inputmode="numeric" required></label>
+        </div>
+        <label class="field-block"><span>カテゴリ</span><input name="category" type="text" required></label>
+        <div>
+          <p class="chip-title">よく使うカテゴリ</p>
+          <div id="quickCategoryChips" class="chip-group"></div>
+        </div>
+        <div>
+          <p class="chip-title">金額プリセット</p>
+          <div class="chip-group" id="amountPresetChips">
+            <button type="button" class="chip-button" data-amount="500">¥500</button>
+            <button type="button" class="chip-button" data-amount="1000">¥1,000</button>
+            <button type="button" class="chip-button" data-amount="3000">¥3,000</button>
+            <button type="button" class="chip-button" data-amount="5000">¥5,000</button>
+            <button type="button" class="chip-button" data-amount="10000">¥10,000</button>
+          </div>
+        </div>
+        <label class="field-block"><span>メモ</span><input name="note" type="text"></label>
+        <input name="type" type="hidden" value="expense">
+        <button class="quick-submit" type="submit">このまま保存</button>
+      </form>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Budget Table</p>
+            <h2>予算カテゴリ</h2>
+          </div>
+          <form id="categoryForm" class="inline-form">
+            <input name="name" type="text" placeholder="カテゴリ名" required>
+            <input name="budget" type="number" min="0" step="1000" placeholder="月予算" required>
+            <button type="submit">追加</button>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>カテゴリ</th><th>月予算</th><th></th></tr></thead><tbody id="categoryTableBody"></tbody></table></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Revenue Target</p>
+            <h2>収益目標</h2>
+          </div>
+          <form id="incomeTargetForm" class="inline-form">
+            <input name="name" type="text" placeholder="収益項目" required>
+            <input name="target" type="number" min="0" step="1000" placeholder="目標額" required>
+            <button type="submit">追加</button>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>項目</th><th>月目標</th><th></th></tr></thead><tbody id="incomeTargetTableBody"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading transaction-heading">
+        <div>
+          <p class="section-label">Cash Flow Log</p>
+          <h2>入出金記録</h2>
+        </div>
+        <form id="transactionForm" class="transaction-form">
+          <input name="date" type="date" required>
+          <select name="type" required><option value="expense">支出</option><option value="income">収入</option></select>
+          <input name="category" type="text" placeholder="カテゴリ or 収益項目" required>
+          <input name="amount" type="number" min="0" step="1" placeholder="金額" required>
+          <input name="note" type="text" placeholder="メモ">
+          <button type="submit">記録</button>
+        </form>
+      </div>
+      <div class="status-row"><span id="saveStatus">未保存の変更はありません</span></div>
+      <div class="table-wrap"><table><thead><tr><th>日付</th><th>区分</th><th>カテゴリ</th><th>金額</th><th>メモ</th><th></th></tr></thead><tbody id="transactionTableBody"></tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">Monthly Breakdown</p>
+          <h2>カテゴリ別の残予算</h2>
+        </div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>カテゴリ</th><th>予算</th><th>使用額</th><th>残額</th><th>消化率</th></tr></thead><tbody id="summaryTableBody"></tbody></table></div>
+    </section>
+  </main>
+
+  <template id="emptyStateTemplate">
+    <tr><td colspan="6" class="empty-state">まだデータがありません。上のフォームから追加してください。</td></tr>
+  </template>
+
+  <script>
+    window.__BUDGET_BOOTSTRAP__ = <?!= bootstrap ?>;
+    <?!= js ?>
+  </script>
+</body>
+</html>

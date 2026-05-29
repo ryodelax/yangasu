@@ -1,0 +1,41 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const {execSync} = require('child_process');
+const puppeteer = require('puppeteer-core');
+async function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+(async () => {
+  const profileName = 'Profile 1';
+  const srcRoot = path.join(os.homedir(), 'Library/Application Support/Google/Chrome');
+  const dstRoot = `/tmp/chrome-copy-${profileName.replace(/[^a-zA-Z0-9]/g,'_')}`;
+  execSync(`rm -rf ${JSON.stringify(dstRoot)}`);
+  fs.mkdirSync(dstRoot, {recursive: true});
+  for (const name of ['Local State', profileName]) execSync(`cp -R ${JSON.stringify(path.join(srcRoot,name))} ${JSON.stringify(path.join(dstRoot,name))}`);
+  const browser = await puppeteer.launch({headless:false, executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', userDataDir:dstRoot, args:[`--profile-directory=${profileName}`,'--no-first-run','--no-default-browser-check'], defaultViewport:{width:1440,height:960}});
+  const page = await browser.newPage();
+  await page.goto('https://docs.google.com/spreadsheets/d/1wX6LR1ssqThgPAIHRyUNeuvROsnXqDMcwFbMCj1PB8M/edit#gid=700000200',{waitUntil:'domcontentloaded', timeout:120000});
+  await delay(12000);
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div[role="menuitem"]')].find(el => (el.textContent||'').trim() === '拡張機能');
+    if (!el) throw new Error('拡張機能 not found');
+    el.click();
+  });
+  await delay(1500);
+  const before = await browser.pages();
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll('*')].find(el => (el.textContent||'').trim() === 'Apps Script(E)' || (el.textContent||'').trim() === 'Apps Script');
+    if (!el) throw new Error('Apps Script item not found');
+    el.click();
+  });
+  await delay(8000);
+  const pages = await browser.pages();
+  console.log('page count', pages.length, 'before', before.length);
+  for (const [i,p] of pages.entries()) {
+    try {
+      const url = p.url();
+      const title = await p.title();
+      console.log('PAGE', i, url, title);
+    } catch (e) { console.log('PAGEERR', i, e.message); }
+  }
+  await browser.close();
+})().catch(err=>{console.error(err); process.exit(1)});

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title>Vehicle Flow Studio</title>
+  <style>
+    <?!= css ?>
+  </style>
+</head>
+<body>
+  <div class="glow glow-left"></div>
+  <div class="glow glow-right"></div>
+
+  <main class="app-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Vehicle Flow Studio</p>
+        <h1>誰の案件で、誰の車で、どこにあり、金がどう動くかを分けて見る。</h1>
+        <p>営業用シートとは別に、車両販売の過程を `仕入元` `現在所有権` `保管先` `売却先` `資金移動` に分けて整理する入力アプリです。BRIDGE が顧客と金をやり取りしても、所有権はコンクエストにあるような特殊スキームを分けて把握できます。</p>
+      </div>
+      <div class="hero-links">
+        <a id="sheetLink" class="hero-link" href="#" target="_blank" rel="noopener noreferrer">保存先シートを開く</a>
+        <a id="appLink" class="hero-link secondary" href="#" target="_blank" rel="noopener noreferrer">このアプリのURL</a>
+      </div>
+    </section>
+
+    <section class="stats-grid" id="statsGrid"></section>
+
+    <section class="panel workflow-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">Workflow</p>
+          <h2>入力の順番</h2>
+        </div>
+        <div class="status-row">まず案件を作成し、その後に進行・資金・利益を追加します</div>
+      </div>
+      <div class="workflow-steps" id="workflowSteps">
+        <button type="button" class="step-chip active" data-step-target="1">1. 案件基本</button>
+        <button type="button" class="step-chip" data-step-target="2">2. 進行記録</button>
+        <button type="button" class="step-chip" data-step-target="3">3. 資金移動</button>
+        <button type="button" class="step-chip" data-step-target="4">4. 利益計上</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">Live Cases</p>
+          <h2>今動いている案件</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>案件</th>
+              <th>お客様</th>
+              <th>現在地</th>
+              <th>最新やり取り</th>
+              <th>次回予定</th>
+              <th>未完了</th>
+              <th>資金差引</th>
+            </tr>
+          </thead>
+          <tbody id="progressBoardBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="content-grid wizard-section" data-step="1">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Deal Master</p>
+            <h2>案件基本情報</h2>
+          </div>
+        </div>
+        <div class="step-guide">
+          <p class="step-guide-title">この段階で入れるもの</p>
+          <p class="step-guide-body">まず案件の土台を作ります。最低限、`案件名` `車種` `仕入元名` を入れれば進められます。売却先や紹介料は未定でも後から更新できます。</p>
+        </div>
+        <form id="dealForm" class="stack-form">
+          <div class="form-grid cols-2">
+            <div class="form-divider span-2">案件の基本情報</div>
+            <label><span>案件名 <em class="req">必須</em></span><input name="caseName" type="text" required></label>
+            <label><span>ブランド</span><select name="brand" id="brandSelect"></select></label>
+            <label><span>車種 <em class="req">必須</em></span><input name="vehicleName" type="text" required></label>
+            <label class="span-2"><span>車両管理キー</span><input name="vehicleKey" type="text" placeholder="車台番号下6桁 / 在庫管理番号など。同じ車なら同じ値を使う"></label>
+            <div class="form-divider span-2">関係者と権利関係</div>
+            <label><span>仕入元区分</span><select name="sourceType" id="sourceTypeSelect"></select></label>
+            <label><span>仕入元名 <em class="req">必須</em></span><input name="sourceName" type="text" placeholder="この車をどこから受けるか" required></label>
+            <label><span>現在所有者区分</span><select name="ownerType" id="ownerTypeSelect"></select></label>
+            <label><span>現在所有者名</span><input name="ownerName" type="text" placeholder="法的に現在誰の車か"></label>
+            <label><span>保管先区分</span><select name="custodyType" id="custodyTypeSelect"></select></label>
+            <label><span>保管先名</span><input name="custodyName" type="text" placeholder="現車の置き場所 / 管理先"></label>
+            <label><span>売却先区分</span><select name="buyerType" id="buyerTypeSelect"></select></label>
+            <label><span>売却先名</span><input name="buyerName" type="text" placeholder="この車を最終的に誰へ売るか"></label>
+            <label><span>所有権スキーム</span><select name="ownershipScheme" id="ownershipSchemeSelect"></select></label>
+            <label><span>コンクエスト精算方式</span><select name="settlementMode" id="settlementModeSelect"></select></label>
+            <div class="form-divider span-2">案件管理</div>
+            <label><span>案件区分</span><select name="dealType" id="dealTypeSelect"></select></label>
+            <label><span>在庫状態</span><select name="inventoryStage" id="inventoryStageSelect"></select></label>
+            <label><span>進捗</span><select name="progress" id="progressSelect"></select></label>
+            <label><span>利益計上ルール</span><select name="recognitionRule" id="recognitionRuleSelect"></select></label>
+            <label><span>残債精算あり</span><select name="loanSettlement" id="loanSettlementSelect"></select></label>
+            <div class="form-divider span-2">日付と金額</div>
+            <label><span>案件発生日</span><input name="caseDate" type="date"></label>
+            <label><span>受注日</span><input name="orderDate" type="date"></label>
+            <label><span>登録予定日</span><input name="registrationPlanDate" type="date"></label>
+            <label><span>登録決定日</span><input name="registrationDate" type="date"></label>
+            <label><span>販売売上（税込）</span><input name="saleAmountTaxIn" type="number" min="0" step="1"></label>
+            <label><span>販売売上（税抜）</span><input name="saleAmountTaxEx" type="number" min="0" step="1"></label>
+            <label><span>粗利見込</span><input name="expectedProfit" type="number" min="0" step="1"></label>
+            <label><span>粗利確定</span><input name="confirmedProfit" type="number" min="0" step="1"></label>
+            <label><span>紹介料売上</span><input name="referralSales" type="number" min="0" step="1"></label>
+            <label><span>紹介料利益</span><input name="referralProfit" type="number" min="0" step="1"></label>
+            <label class="span-2"><span>関連案件</span><input name="relatedCase" type="text"></label>
+            <label class="span-2"><span>メモ</span><textarea name="memo" rows="3"></textarea></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit">案件を追加</button>
+            <button type="button" class="secondary" data-step-target="2">次へ: 進行記録</button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <section class="panel wizard-section" data-step="2">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">Case Progress</p>
+          <h2>進行・やり取り入力</h2>
+        </div>
+      </div>
+      <div class="step-guide">
+        <p class="step-guide-title">この段階で入れるもの</p>
+        <p class="step-guide-body">顧客とのやり取り、査定、書類待ち、納車前整備、次回予定を残します。最低限、`案件` `記録日` `内容` を入れてください。</p>
+      </div>
+      <form id="progressForm" class="stack-form">
+        <div class="form-grid cols-2">
+          <label class="span-2"><span>紐づく案件 <em class="req">必須</em></span><select name="dealId" id="progressDealSelect"></select></label>
+          <label><span>記録日 <em class="req">必須</em></span><input name="loggedOn" type="date" required></label>
+          <label><span>記録区分</span><select name="activityKind" id="activityKindSelect"></select></label>
+          <label><span>工程区分</span><select name="activityPhase" id="activityPhaseSelect"></select></label>
+          <label><span>完了状況</span><select name="activityStatus" id="activityStatusSelect"></select></label>
+          <label><span>相手先区分</span><select name="counterpartyType" id="activityCounterpartyTypeSelect"></select></label>
+          <label><span>相手先名</span><input name="counterpartyName" type="text" placeholder="顧客 / コンクエスト / 社内担当など"></label>
+          <label class="span-2"><span>内容 <em class="req">必須</em></span><input name="summary" type="text" placeholder="査定結果を案内 / 新車見積を送付 / 納車前整備に入庫 など" required></label>
+          <label><span>次回予定日</span><input name="nextActionOn" type="date"></label>
+          <label><span>次回予定</span><input name="nextAction" type="text" placeholder="入金確認 / 書類回収 / 納車前整備完了確認"></label>
+          <label><span>案件進捗更新</span><select name="progressUpdate" id="activityProgressSelect"></select></label>
+          <label><span>在庫状態更新</span><select name="inventoryUpdate" id="activityInventorySelect"></select></label>
+          <label class="span-2"><span>メモ</span><textarea name="memo" rows="3"></textarea></label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="secondary" data-step-target="1">戻る</button>
+          <button type="submit">進行記録を追加</button>
+          <button type="button" class="secondary" data-step-target="3">次へ: 資金移動</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="content-grid wizard-section" data-step="3">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Cash Movement</p>
+            <h2>資金移動入力</h2>
+          </div>
+        </div>
+        <div class="step-guide">
+          <p class="step-guide-title">この段階で入れるもの</p>
+          <p class="step-guide-body">支払い・入金予定を登録します。最低限、`案件` と `日付`、そして `金額項目のいずれか` を入れてください。ローン返済や差額精算もここです。</p>
+        </div>
+        <form id="cashoutForm" class="stack-form">
+          <div class="form-grid cols-2">
+            <label class="span-2"><span>紐づく案件 <em class="req">必須</em></span><select name="dealId" id="cashoutDealSelect"></select></label>
+            <label><span>資金区分</span><select name="flowType" id="flowTypeSelect"></select></label>
+            <label><span>入出金</span><select name="flowDirection" id="flowDirectionSelect"></select></label>
+            <label><span>発生日</span><input name="occurredOn" type="date"></label>
+            <label><span>予定日</span><input name="scheduledOn" type="date"></label>
+            <label><span>資金レイヤー</span><select name="moneyLane" id="moneyLaneSelect"></select></label>
+            <label><span>車両</span><input name="vehicleName" type="text"></label>
+            <label><span>案件表示名</span><input name="caseLabel" type="text"></label>
+            <label><span>相手先区分</span><select name="counterpartyType" id="counterpartyTypeSelect"></select></label>
+            <label><span>相手先名</span><input name="counterpartyName" type="text" placeholder="今回の入出金の相手先"></label>
+            <label><span>査定額</span><input name="appraisalAmount" type="number" step="1"></label>
+            <label><span>仕入額</span><input name="purchaseAmount" type="number" step="1"></label>
+            <label><span>残債額</span><input name="loanBalance" type="number" step="1"></label>
+            <label><span>残債等支払額</span><input name="loanPaymentAmount" type="number" step="1"></label>
+            <label><span>資金移動額</span><input name="cashMovementAmount" type="number" step="1" placeholder="差額精算や入金額"></label>
+            <label><span>収益対象</span><select name="revenueTarget" id="revenueTargetSelect"></select></label>
+            <label><span>利益対象</span><select name="profitTarget" id="profitTargetSelect"></select></label>
+            <label class="span-2"><span>進行状況</span><input name="progressNote" type="text" placeholder="ローン会社へ振込待ち / 顧客から差額入金待ち など"></label>
+            <label class="span-2"><span>関連案件</span><input name="relatedCase" type="text"></label>
+            <label class="span-2"><span>メモ</span><textarea name="memo" rows="3"></textarea></label>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="secondary" data-step-target="2">戻る</button>
+            <button type="submit">資金移動を追加</button>
+            <button type="button" class="secondary" data-step-target="4">次へ: 利益計上</button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <section class="content-grid narrow-first wizard-section" data-step="4">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Recognition</p>
+            <h2>収益計上入力</h2>
+          </div>
+        </div>
+        <div class="step-guide">
+          <p class="step-guide-title">この段階で入れるもの</p>
+          <p class="step-guide-body">利益が確定したタイミングだけ入力します。最低限、`案件` `計上日` と `売上か利益のどちらかの金額` を入れてください。</p>
+        </div>
+        <form id="recognitionForm" class="stack-form">
+          <div class="form-grid cols-2">
+            <label class="span-2"><span>紐づく案件 <em class="req">必須</em></span><select name="dealId" id="recognitionDealSelect"></select></label>
+            <label><span>計上日 <em class="req">必須</em></span><input name="recognizedOn" type="date" required></label>
+            <label><span>計上種別</span><select name="recognitionType" id="recognitionTypeSelect"></select></label>
+            <label><span>売上区分</span><select name="salesType" id="salesTypeSelect"></select></label>
+            <label><span>売上金額（税込）</span><input name="salesAmountTaxEx" type="number" step="1"></label>
+            <label><span>利益金額（税抜）</span><input name="profitAmountTaxEx" type="number" step="1"></label>
+            <label><span>確定条件</span><input name="confirmationRule" type="text" placeholder="登録完了 / 入金確認 / 紹介料入金"></label>
+            <label><span>連携先</span><input name="linkedParty" type="text" placeholder="コンクエスト / BRIDGE など"></label>
+            <label class="span-2"><span>メモ</span><textarea name="memo" rows="3"></textarea></label>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="secondary" data-step-target="3">戻る</button>
+            <button type="submit">収益計上を追加</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Rules</p>
+            <h2>運用ルール</h2>
+          </div>
+        </div>
+        <ul class="logic-list">
+          <li><strong>1. 案件基本情報</strong>: 最初に1回だけ作ります。`仕入元名` は車の出どころ、`売却先名` は最終販売先です。</li>
+          <li><strong>2. 進行・やり取り入力</strong>: 顧客連絡、査定、入金待ち、納車前整備、次回予定はここに追加します。</li>
+          <li><strong>3. 資金移動入力</strong>: 支払いや入金予定だけを追加します。ローン返済や差額精算もここです。</li>
+          <li><strong>4. 収益計上入力</strong>: 紹介料か車両売上かを選んで、利益が確定した時だけ追加します。</li>
+          <li><strong>車両管理キー</strong>: 同じ物理車両を追う共通キーです。下取り取得後に別顧客へ売っても、この値を変えません。</li>
+          <li><strong>現在所有者 / 保管先</strong>: 法的に誰の車かと、物理的にどこに置いてあるかを分けます。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="section-label">Summary</p>
+          <h2>案件一覧</h2>
+        </div>
+        <div class="status-row" id="saveStatus">未保存の変更はありません</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>案件</th>
+              <th>仕入元 / 売却先</th>
+              <th>所有権 / 保管先</th>
+              <th>スキーム</th>
+              <th>残債精算</th>
+              <th>差引資金</th>
+              <th>確定利益</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="dealTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Export</p>
+          <h2>支払予定プレビュー</h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+            <tr>
+              <th>発生日</th>
+              <th>資金レイヤー</th>
+              <th>案件</th>
+              <th>現在所有権</th>
+              <th>支払先</th>
+              <th>支払額</th>
+              <th>支払希望日</th>
+              <th>進行状況</th>
+              <th></th>
+            </tr>
+            </thead>
+            <tbody id="cashoutPreviewBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Recognition Log</p>
+            <h2>収益計上一覧</h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>計上日</th>
+                <th>案件</th>
+                <th>計上種別</th>
+                <th>売上税抜</th>
+                <th>利益税抜</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recognitionTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <template id="emptyStateTemplate">
+    <tr><td colspan="9" class="empty-state">まだデータがありません。</td></tr>
+  </template>
+
+  <script>
+    window.__VEHICLE_SALES_BOOTSTRAP__ = <?!= bootstrap ?>;
+    <?!= js ?>
+  </script>
+</body>
+</html>

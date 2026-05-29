@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /tmp/pptx_work/ppt/slides/ | head -20 && echo \"---\" && ls /tmp/pptx_work/ppt/slides/ | wc -l)"
+    ]
+  }
+}

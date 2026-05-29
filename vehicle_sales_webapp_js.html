@@ -1,0 +1,803 @@
+<script>
+(function() {
+  const els = {
+    sheetLink: document.querySelector("#sheetLink"),
+    appLink: document.querySelector("#appLink"),
+    statsGrid: document.querySelector("#statsGrid"),
+    dealForm: document.querySelector("#dealForm"),
+    cashoutForm: document.querySelector("#cashoutForm"),
+    progressForm: document.querySelector("#progressForm"),
+    recognitionForm: document.querySelector("#recognitionForm"),
+    progressBoardBody: document.querySelector("#progressBoardBody"),
+    dealTableBody: document.querySelector("#dealTableBody"),
+    cashoutPreviewBody: document.querySelector("#cashoutPreviewBody"),
+    recognitionTableBody: document.querySelector("#recognitionTableBody"),
+    saveStatus: document.querySelector("#saveStatus"),
+    emptyStateTemplate: document.querySelector("#emptyStateTemplate"),
+    brandSelect: document.querySelector("#brandSelect"),
+    sourceTypeSelect: document.querySelector("#sourceTypeSelect"),
+    ownerTypeSelect: document.querySelector("#ownerTypeSelect"),
+    custodyTypeSelect: document.querySelector("#custodyTypeSelect"),
+    buyerTypeSelect: document.querySelector("#buyerTypeSelect"),
+    ownershipSchemeSelect: document.querySelector("#ownershipSchemeSelect"),
+    settlementModeSelect: document.querySelector("#settlementModeSelect"),
+    dealTypeSelect: document.querySelector("#dealTypeSelect"),
+    progressSelect: document.querySelector("#progressSelect"),
+    inventoryStageSelect: document.querySelector("#inventoryStageSelect"),
+    recognitionRuleSelect: document.querySelector("#recognitionRuleSelect"),
+    loanSettlementSelect: document.querySelector("#loanSettlementSelect"),
+    cashoutDealSelect: document.querySelector("#cashoutDealSelect"),
+    progressDealSelect: document.querySelector("#progressDealSelect"),
+    flowTypeSelect: document.querySelector("#flowTypeSelect"),
+    flowDirectionSelect: document.querySelector("#flowDirectionSelect"),
+    moneyLaneSelect: document.querySelector("#moneyLaneSelect"),
+    counterpartyTypeSelect: document.querySelector("#counterpartyTypeSelect"),
+    activityCounterpartyTypeSelect: document.querySelector("#activityCounterpartyTypeSelect"),
+    revenueTargetSelect: document.querySelector("#revenueTargetSelect"),
+    profitTargetSelect: document.querySelector("#profitTargetSelect"),
+    activityKindSelect: document.querySelector("#activityKindSelect"),
+    activityPhaseSelect: document.querySelector("#activityPhaseSelect"),
+    activityStatusSelect: document.querySelector("#activityStatusSelect"),
+    activityProgressSelect: document.querySelector("#activityProgressSelect"),
+    activityInventorySelect: document.querySelector("#activityInventorySelect"),
+    recognitionDealSelect: document.querySelector("#recognitionDealSelect"),
+    recognitionTypeSelect: document.querySelector("#recognitionTypeSelect"),
+    salesTypeSelect: document.querySelector("#salesTypeSelect")
+  };
+  const workflowButtons = Array.from(document.querySelectorAll("[data-step-target]"));
+  const workflowNavButtons = Array.from(document.querySelectorAll(".step-chip"));
+  const workflowSections = Array.from(document.querySelectorAll(".wizard-section"));
+
+  let state = sanitizeState(window.__VEHICLE_SALES_BOOTSTRAP__ || {});
+  let currentStep = 1;
+
+  initialize();
+
+  function initialize() {
+    bindEvents();
+    render();
+  }
+
+  function bindEvents() {
+    workflowButtons.forEach(function(button) {
+      button.addEventListener("click", function() {
+        setActiveStep(Number(button.dataset.stepTarget || "1"));
+      });
+    });
+
+    els.dealForm.addEventListener("submit", function(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      if (!validateDealForm(formData)) return;
+      state.deals.unshift({
+        id: createId(),
+        caseNumber: "",
+        caseName: cleanText(formData.get("caseName")),
+        brand: cleanText(formData.get("brand")),
+        vehicleName: cleanText(formData.get("vehicleName")),
+        vehicleKey: cleanText(formData.get("vehicleKey")),
+        sourceType: cleanText(formData.get("sourceType")),
+        sourceName: cleanText(formData.get("sourceName")),
+        ownerType: cleanText(formData.get("ownerType")),
+        ownerName: cleanText(formData.get("ownerName")),
+        custodyType: cleanText(formData.get("custodyType")),
+        custodyName: cleanText(formData.get("custodyName")),
+        buyerType: cleanText(formData.get("buyerType")),
+        buyerName: cleanText(formData.get("buyerName")),
+        ownershipScheme: cleanText(formData.get("ownershipScheme")),
+        settlementMode: cleanText(formData.get("settlementMode")),
+        dealType: cleanText(formData.get("dealType")),
+        progress: cleanText(formData.get("progress")),
+        inventoryStage: cleanText(formData.get("inventoryStage")),
+        recognitionRule: cleanText(formData.get("recognitionRule")),
+        loanSettlement: cleanText(formData.get("loanSettlement")),
+        caseDate: cleanText(formData.get("caseDate")),
+        orderDate: cleanText(formData.get("orderDate")),
+        registrationPlanDate: cleanText(formData.get("registrationPlanDate")),
+        registrationDate: cleanText(formData.get("registrationDate")),
+        saleAmountTaxIn: normalizeNumber(formData.get("saleAmountTaxIn")),
+        saleAmountTaxEx: normalizeNumber(formData.get("saleAmountTaxEx")),
+        expectedProfit: normalizeNumber(formData.get("expectedProfit")),
+        confirmedProfit: normalizeNumber(formData.get("confirmedProfit")),
+        referralSales: normalizeNumber(formData.get("referralSales")),
+        referralProfit: normalizeNumber(formData.get("referralProfit")),
+        relatedCase: cleanText(formData.get("relatedCase")),
+        memo: cleanText(formData.get("memo"))
+      });
+      event.currentTarget.reset();
+      setDefaultSelects();
+      persistState("案件を保存中...");
+      setActiveStep(2);
+    });
+
+    els.cashoutForm.addEventListener("submit", function(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      if (!validateCashoutForm(formData)) return;
+      state.cashouts.unshift({
+        id: createId(),
+        dealId: cleanText(formData.get("dealId")),
+        occurredOn: cleanText(formData.get("occurredOn")),
+        flowType: cleanText(formData.get("flowType")),
+        flowDirection: cleanText(formData.get("flowDirection")),
+        vehicleName: cleanText(formData.get("vehicleName")),
+        caseLabel: cleanText(formData.get("caseLabel")),
+        moneyLane: cleanText(formData.get("moneyLane")),
+        counterpartyType: cleanText(formData.get("counterpartyType")),
+        counterpartyName: cleanText(formData.get("counterpartyName")),
+        appraisalAmount: normalizeNumber(formData.get("appraisalAmount")),
+        purchaseAmount: normalizeNumber(formData.get("purchaseAmount")),
+        loanBalance: normalizeNumber(formData.get("loanBalance")),
+        loanPaymentAmount: normalizeNumber(formData.get("loanPaymentAmount")),
+        cashMovementAmount: normalizeNumber(formData.get("cashMovementAmount")),
+        scheduledOn: cleanText(formData.get("scheduledOn")),
+        revenueTarget: cleanText(formData.get("revenueTarget")),
+        profitTarget: cleanText(formData.get("profitTarget")),
+        relatedCase: cleanText(formData.get("relatedCase")),
+        progressNote: cleanText(formData.get("progressNote")),
+        memo: cleanText(formData.get("memo"))
+      });
+      event.currentTarget.reset();
+      setDefaultSelects();
+      persistState("資金移動を保存中...");
+      setActiveStep(4);
+    });
+
+    els.progressForm.addEventListener("submit", function(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      if (!validateProgressForm(formData)) return;
+      const dealId = cleanText(formData.get("dealId"));
+      const progressUpdate = cleanText(formData.get("progressUpdate"));
+      const inventoryUpdate = cleanText(formData.get("inventoryUpdate"));
+      state.progressLogs.unshift({
+        id: createId(),
+        dealId: dealId,
+        loggedOn: cleanText(formData.get("loggedOn")),
+        activityKind: cleanText(formData.get("activityKind")),
+        activityPhase: cleanText(formData.get("activityPhase")),
+        counterpartyType: cleanText(formData.get("counterpartyType")),
+        counterpartyName: cleanText(formData.get("counterpartyName")),
+        summary: cleanText(formData.get("summary")),
+        nextActionOn: cleanText(formData.get("nextActionOn")),
+        nextAction: cleanText(formData.get("nextAction")),
+        activityStatus: cleanText(formData.get("activityStatus")),
+        progressUpdate: progressUpdate,
+        inventoryUpdate: inventoryUpdate,
+        memo: cleanText(formData.get("memo"))
+      });
+      state.deals = state.deals.map(function(item) {
+        if (item.id !== dealId) return item;
+        return Object.assign({}, item, {
+          progress: progressUpdate || item.progress,
+          inventoryStage: inventoryUpdate || item.inventoryStage
+        });
+      });
+      event.currentTarget.reset();
+      setDefaultSelects();
+      persistState("進行記録を保存中...");
+      setActiveStep(3);
+    });
+
+    els.recognitionForm.addEventListener("submit", function(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      if (!validateRecognitionForm(formData)) return;
+      state.recognitions.unshift({
+        id: createId(),
+        dealId: cleanText(formData.get("dealId")),
+        recognizedOn: cleanText(formData.get("recognizedOn")),
+        recognitionType: cleanText(formData.get("recognitionType")),
+        salesType: cleanText(formData.get("salesType")),
+        salesAmountTaxEx: normalizeNumber(formData.get("salesAmountTaxEx")),
+        profitAmountTaxEx: normalizeNumber(formData.get("profitAmountTaxEx")),
+        confirmationRule: cleanText(formData.get("confirmationRule")),
+        linkedParty: cleanText(formData.get("linkedParty")),
+        memo: cleanText(formData.get("memo"))
+      });
+      event.currentTarget.reset();
+      setDefaultSelects();
+      persistState("収益計上を保存中...");
+    });
+
+    [els.dealTableBody, els.cashoutPreviewBody, els.recognitionTableBody].forEach(function(element) {
+      element.addEventListener("click", handleDeleteClick);
+    });
+  }
+
+  function handleDeleteClick(event) {
+    const button = event.target.closest("[data-action='delete']");
+    if (!button) return;
+    const kind = button.dataset.kind;
+    const id = button.dataset.id;
+    if (kind === "deal") {
+      state.deals = state.deals.filter(function(item) { return item.id !== id; });
+      state.cashouts = state.cashouts.filter(function(item) { return item.dealId !== id; });
+      state.recognitions = state.recognitions.filter(function(item) { return item.dealId !== id; });
+      state.progressLogs = state.progressLogs.filter(function(item) { return item.dealId !== id; });
+    } else if (kind === "cashout") {
+      state.cashouts = state.cashouts.filter(function(item) { return item.id !== id; });
+    } else if (kind === "recognition") {
+      state.recognitions = state.recognitions.filter(function(item) { return item.id !== id; });
+    }
+    persistState("削除内容を保存中...");
+  }
+
+  function persistState(message) {
+    els.saveStatus.textContent = message;
+    render();
+    google.script.run
+      .withSuccessHandler(function(payload) {
+        state = sanitizeState(payload);
+        render();
+        els.saveStatus.textContent = "保存済み";
+      })
+      .withFailureHandler(function(error) {
+        els.saveStatus.textContent = "保存に失敗しました: " + (error && error.message ? error.message : error);
+      })
+      .saveVehicleSalesAppPayload(state);
+  }
+
+  function render() {
+    renderSelects();
+    renderWorkflow();
+    renderStats();
+    renderProgressBoard();
+    renderDeals();
+    renderCashoutPreview();
+    renderRecognitions();
+    els.sheetLink.href = state.spreadsheetUrl || "#";
+    els.appLink.href = state.appUrl || "#";
+  }
+
+  function renderWorkflow() {
+    workflowNavButtons.forEach(function(button) {
+      button.classList.toggle("active", Number(button.dataset.stepTarget || "0") === currentStep);
+    });
+    workflowSections.forEach(function(section) {
+      section.hidden = Number(section.dataset.step || "0") !== currentStep;
+    });
+  }
+
+  function setActiveStep(step) {
+    currentStep = Math.max(1, Math.min(4, Number(step) || 1));
+    renderWorkflow();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function failValidation(message, step) {
+    els.saveStatus.textContent = message;
+    setActiveStep(step);
+    return false;
+  }
+
+  function validateDealForm(formData) {
+    if (!cleanText(formData.get("caseName"))) return failValidation("案件基本: 案件名を入力してください。", 1);
+    if (!cleanText(formData.get("vehicleName"))) return failValidation("案件基本: 車種を入力してください。", 1);
+    if (!cleanText(formData.get("sourceName"))) return failValidation("案件基本: 仕入元名を入力してください。", 1);
+    return true;
+  }
+
+  function validateProgressForm(formData) {
+    if (!cleanText(formData.get("dealId"))) return failValidation("進行記録: 紐づく案件を選択してください。", 2);
+    if (!cleanText(formData.get("loggedOn"))) return failValidation("進行記録: 記録日を入力してください。", 2);
+    if (!cleanText(formData.get("summary"))) return failValidation("進行記録: 内容を入力してください。", 2);
+    return true;
+  }
+
+  function validateCashoutForm(formData) {
+    if (!cleanText(formData.get("dealId"))) return failValidation("資金移動: 紐づく案件を選択してください。", 3);
+    if (!cleanText(formData.get("occurredOn")) && !cleanText(formData.get("scheduledOn"))) {
+      return failValidation("資金移動: 発生日か予定日のどちらかを入力してください。", 3);
+    }
+    const totalAmount = [
+      "appraisalAmount",
+      "purchaseAmount",
+      "loanBalance",
+      "loanPaymentAmount",
+      "cashMovementAmount"
+    ].reduce(function(sum, key) { return sum + normalizeNumber(formData.get(key)); }, 0);
+    if (!totalAmount) {
+      return failValidation("資金移動: 金額項目を1つ以上入力してください。", 3);
+    }
+    return true;
+  }
+
+  function validateRecognitionForm(formData) {
+    if (!cleanText(formData.get("dealId"))) return failValidation("利益計上: 紐づく案件を選択してください。", 4);
+    if (!cleanText(formData.get("recognizedOn"))) return failValidation("利益計上: 計上日を入力してください。", 4);
+    if (!normalizeNumber(formData.get("salesAmountTaxEx")) && !normalizeNumber(formData.get("profitAmountTaxEx"))) {
+      return failValidation("利益計上: 売上金額か利益金額のどちらかを入力してください。", 4);
+    }
+    return true;
+  }
+
+  function renderSelects() {
+    setOptions(els.brandSelect, state.options.brands);
+    setOptions(els.sourceTypeSelect, state.options.sourceTypes);
+    setOptions(els.ownerTypeSelect, state.options.ownerTypes);
+    setOptions(els.custodyTypeSelect, state.options.custodyTypes);
+    setOptions(els.buyerTypeSelect, state.options.buyerTypes);
+    setOptions(els.ownershipSchemeSelect, state.options.ownershipSchemes);
+    setOptions(els.settlementModeSelect, state.options.settlementModes);
+    setOptions(els.dealTypeSelect, state.options.dealTypes);
+    setOptions(els.progressSelect, state.options.progress);
+    setOptions(els.inventoryStageSelect, state.options.inventoryStages);
+    setOptions(els.recognitionRuleSelect, state.options.recognitionRules);
+    setOptions(els.loanSettlementSelect, state.options.loanFlags);
+    setOptions(els.flowTypeSelect, state.options.flowTypes);
+    setOptions(els.flowDirectionSelect, state.options.flowDirections);
+    setOptions(els.moneyLaneSelect, state.options.moneyLanes);
+    setOptions(els.counterpartyTypeSelect, state.options.counterpartyTypes);
+    setOptions(els.activityCounterpartyTypeSelect, state.options.counterpartyTypes);
+    setOptions(els.revenueTargetSelect, state.options.targetFlags);
+    setOptions(els.profitTargetSelect, state.options.targetFlags);
+    setOptions(els.activityKindSelect, state.options.activityKinds);
+    setOptions(els.activityPhaseSelect, state.options.activityPhases);
+    setOptions(els.activityStatusSelect, state.options.activityStatuses);
+    setOptions(els.activityProgressSelect, [""] .concat(state.options.progress));
+    setOptions(els.activityInventorySelect, [""] .concat(state.options.inventoryStages));
+    setOptions(els.recognitionTypeSelect, state.options.recognitionTypes);
+    setOptions(els.salesTypeSelect, state.options.salesTypes);
+    setDealOptions(els.cashoutDealSelect, true);
+    setDealOptions(els.progressDealSelect, true);
+    setDealOptions(els.recognitionDealSelect, true);
+    setDefaultSelects();
+  }
+
+  function setOptions(select, values) {
+    const current = select.value;
+    select.innerHTML = values.map(function(item) {
+      return "<option value=\"" + escapeHtml(item) + "\">" + escapeHtml(item) + "</option>";
+    }).join("");
+    if (values.indexOf(current) >= 0) {
+      select.value = current;
+    }
+  }
+
+  function setDealOptions(select, includeEmpty) {
+    const current = select.value;
+    const options = [];
+    if (includeEmpty) {
+      options.push("<option value=\"\">案件を選択</option>");
+    }
+    state.deals.forEach(function(item) {
+      const label = [item.caseNumber, item.vehicleKey, item.caseName, item.ownerName, item.buyerName].filter(Boolean).join(" / ");
+      options.push("<option value=\"" + escapeHtml(item.id) + "\">" + escapeHtml(label || item.id) + "</option>");
+    });
+    select.innerHTML = options.join("");
+    if (current && Array.from(select.options).some(function(option) { return option.value === current; })) {
+      select.value = current;
+    }
+  }
+
+  function setDefaultSelects() {
+    if (!els.brandSelect.value) els.brandSelect.value = state.options.brands[0];
+    if (!els.sourceTypeSelect.value) els.sourceTypeSelect.value = state.options.sourceTypes[0];
+    if (!els.ownerTypeSelect.value) els.ownerTypeSelect.value = state.options.ownerTypes[0];
+    if (!els.custodyTypeSelect.value) els.custodyTypeSelect.value = state.options.custodyTypes[0];
+    if (!els.buyerTypeSelect.value) els.buyerTypeSelect.value = state.options.buyerTypes[0];
+    if (!els.ownershipSchemeSelect.value) els.ownershipSchemeSelect.value = state.options.ownershipSchemes[0];
+    if (!els.settlementModeSelect.value) els.settlementModeSelect.value = state.options.settlementModes[0];
+    if (!els.dealTypeSelect.value) els.dealTypeSelect.value = state.options.dealTypes[0];
+    if (!els.progressSelect.value) els.progressSelect.value = state.options.progress[0];
+    if (!els.inventoryStageSelect.value) els.inventoryStageSelect.value = state.options.inventoryStages[0];
+    if (!els.recognitionRuleSelect.value) els.recognitionRuleSelect.value = state.options.recognitionRules[0];
+    if (!els.loanSettlementSelect.value) els.loanSettlementSelect.value = state.options.loanFlags[0];
+    if (!els.flowTypeSelect.value) els.flowTypeSelect.value = state.options.flowTypes[0];
+    if (!els.flowDirectionSelect.value) els.flowDirectionSelect.value = state.options.flowDirections[0];
+    if (!els.moneyLaneSelect.value) els.moneyLaneSelect.value = state.options.moneyLanes[0];
+    if (!els.counterpartyTypeSelect.value) els.counterpartyTypeSelect.value = state.options.counterpartyTypes[0];
+    if (!els.activityCounterpartyTypeSelect.value) els.activityCounterpartyTypeSelect.value = state.options.counterpartyTypes[0];
+    if (!els.revenueTargetSelect.value) els.revenueTargetSelect.value = state.options.targetFlags[0];
+    if (!els.profitTargetSelect.value) els.profitTargetSelect.value = state.options.targetFlags[0];
+    if (!els.activityKindSelect.value) els.activityKindSelect.value = state.options.activityKinds[0];
+    if (!els.activityPhaseSelect.value) els.activityPhaseSelect.value = state.options.activityPhases[0];
+    if (!els.activityStatusSelect.value) els.activityStatusSelect.value = state.options.activityStatuses[0];
+    if (!els.recognitionTypeSelect.value) els.recognitionTypeSelect.value = state.options.recognitionTypes[0];
+    if (!els.salesTypeSelect.value) els.salesTypeSelect.value = state.options.salesTypes[0];
+  }
+
+  function renderStats() {
+    const totals = computeTotals();
+    const cards = [
+      {
+        label: "Active Deals",
+        value: String(state.deals.length),
+        valueClass: "",
+        subtext: "進行中の案件母数"
+      },
+      {
+        label: "Planned Outflow",
+        value: formatCurrency(totals.outflow),
+        valueClass: "negative",
+        subtext: "仕入や残債返済などの出金予定"
+      },
+      {
+        label: "Planned Inflow",
+        value: formatCurrency(totals.inflow),
+        valueClass: "positive",
+        subtext: "差額入金や売上入金などの回収予定"
+      },
+      {
+        label: "Net Cash Gap",
+        value: formatCurrency(totals.inflow - totals.outflow),
+        valueClass: totals.inflow - totals.outflow >= 0 ? "positive" : "negative",
+        subtext: "入金予定 - 出金予定"
+      }
+    ];
+    els.statsGrid.innerHTML = cards.map(function(card) {
+      return "<article class=\"stat-card\"><p class=\"stat-label\">" + escapeHtml(card.label) + "</p><p class=\"stat-value " + card.valueClass + "\">" + escapeHtml(card.value) + "</p><p class=\"stat-subtext\">" + escapeHtml(card.subtext) + "</p></article>";
+    }).join("");
+  }
+
+  function renderProgressBoard() {
+    const totals = computeDealTotals();
+    const activity = computeActivitySummaries();
+    const rows = state.deals.filter(function(item) {
+      return ["完了", "敗戦"].indexOf(item.progress) < 0;
+    });
+    els.progressBoardBody.innerHTML = rows.length ? rows.map(function(item) {
+      const total = totals[item.id] || { outflow: 0, inflow: 0, sales: 0, profit: 0 };
+      const summary = activity[item.id] || createEmptyActivitySummary();
+      return [
+        "<tr>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(item.caseNumber || "-") + "</span><span class=\"cell-note\">" + escapeHtml([item.caseName, item.vehicleKey].filter(Boolean).join(" / ")) + "</span></td>",
+        "<td>" + escapeHtml(item.buyerName || item.sourceName || "-") + "</td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(item.progress || "-") + "</span><span class=\"cell-note\">" + escapeHtml(item.inventoryStage || "-") + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(summary.lastLoggedOn || "-") + "</span><span class=\"cell-note\">" + escapeHtml(summary.lastSummary || "-") + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(summary.nextActionOn || "-") + "</span><span class=\"cell-note\">" + escapeHtml(summary.nextAction || "-") + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(String(summary.openCount || 0)) + "</span><span class=\"cell-note\">" + escapeHtml(summary.openSummary || "-") + "</span></td>",
+        "<td class=\"" + (total.inflow - total.outflow >= 0 ? "positive" : "negative") + "\">" + escapeHtml(formatCurrency(total.inflow - total.outflow)) + "</td>",
+        "</tr>"
+      ].join("");
+    }).join("") : renderEmptyState(7);
+  }
+
+  function renderDeals() {
+    const totals = computeDealTotals();
+    els.dealTableBody.innerHTML = state.deals.length ? state.deals.map(function(item) {
+      const total = totals[item.id] || { outflow: 0, inflow: 0, sales: 0, profit: 0 };
+      const loanSummary = computeLoanSummary(item.id, item.loanSettlement);
+      return [
+        "<tr>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(item.caseNumber || "-") + "</span><span class=\"cell-note\">" + escapeHtml([item.caseName, item.brand, item.vehicleName, item.vehicleKey].filter(Boolean).join(" / ")) + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(joinLabel(item.sourceType, item.sourceName)) + "</span><span class=\"cell-note\">" + escapeHtml(joinLabel(item.buyerType, item.buyerName)) + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(joinLabel(item.ownerType, item.ownerName)) + "</span><span class=\"cell-note\">" + escapeHtml(joinLabel(item.custodyType, item.custodyName)) + "</span></td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(item.ownershipScheme || "-") + "</span><span class=\"cell-note\">" + escapeHtml(item.settlementMode || "-") + "</span></td>",
+        "<td><span class=\"pill " + (loanSummary.hasLoan ? "warn" : "safe") + "\">" + escapeHtml(loanSummary.hasLoan ? "あり" : "なし") + "</span></td>",
+        "<td class=\"" + (total.inflow - total.outflow >= 0 ? "positive" : "negative") + "\">" + escapeHtml(formatCurrency(total.inflow - total.outflow)) + "</td>",
+        "<td>" + escapeHtml(formatCurrency(total.profit)) + "</td>",
+        "<td><button type=\"button\" class=\"danger\" data-action=\"delete\" data-kind=\"deal\" data-id=\"" + escapeHtml(item.id) + "\">削除</button></td>",
+        "</tr>"
+      ].join("");
+    }).join("") : renderEmptyState(8);
+  }
+
+  function renderCashoutPreview() {
+    const rows = state.cashouts.filter(function(item) { return item.flowDirection === "出金"; });
+    els.cashoutPreviewBody.innerHTML = rows.length ? rows.map(function(item) {
+      return [
+        "<tr>",
+        "<td>" + escapeHtml(formatDate(item.occurredOn)) + "</td>",
+        "<td>" + escapeHtml(item.moneyLane || "-") + "</td>",
+        "<td>" + escapeHtml(item.caseLabel || dealLabelById(item.dealId)) + "</td>",
+        "<td>" + escapeHtml(dealOwnershipById(item.dealId)) + "</td>",
+        "<td>" + escapeHtml(item.counterpartyName || "-") + "</td>",
+        "<td><span class=\"cell-amount\">" + escapeHtml(formatCurrency(cashAmount(item))) + "</span><span class=\"cell-note\">" + escapeHtml(item.flowType || "-") + "</span></td>",
+        "<td>" + escapeHtml(formatDate(item.scheduledOn)) + "</td>",
+        "<td>" + escapeHtml(item.progressNote || "-") + "</td>",
+        "<td><button type=\"button\" class=\"danger\" data-action=\"delete\" data-kind=\"cashout\" data-id=\"" + escapeHtml(item.id) + "\">削除</button></td>",
+        "</tr>"
+      ].join("");
+    }).join("") : renderEmptyState(9);
+  }
+
+  function renderRecognitions() {
+    els.recognitionTableBody.innerHTML = state.recognitions.length ? state.recognitions.map(function(item) {
+      return [
+        "<tr>",
+        "<td>" + escapeHtml(formatDate(item.recognizedOn)) + "</td>",
+        "<td>" + escapeHtml(dealLabelById(item.dealId)) + "</td>",
+        "<td>" + escapeHtml(item.recognitionType) + "</td>",
+        "<td>" + escapeHtml(formatCurrency(item.salesAmountTaxEx)) + "</td>",
+        "<td>" + escapeHtml(formatCurrency(item.profitAmountTaxEx)) + "</td>",
+        "<td><button type=\"button\" class=\"danger\" data-action=\"delete\" data-kind=\"recognition\" data-id=\"" + escapeHtml(item.id) + "\">削除</button></td>",
+        "</tr>"
+      ].join("");
+    }).join("") : renderEmptyState(6);
+  }
+
+  function computeTotals() {
+    return state.cashouts.reduce(function(sum, item) {
+      const amount = cashAmount(item);
+      if (item.flowDirection === "入金") {
+        sum.inflow += amount;
+      } else {
+        sum.outflow += amount;
+      }
+      return sum;
+    }, { inflow: 0, outflow: 0 });
+  }
+
+  function computeDealTotals() {
+    const totals = {};
+    state.deals.forEach(function(item) {
+      totals[item.id] = { outflow: 0, inflow: 0, sales: 0, profit: 0 };
+    });
+    state.cashouts.forEach(function(item) {
+      if (!totals[item.dealId]) totals[item.dealId] = { outflow: 0, inflow: 0, sales: 0, profit: 0 };
+      const amount = cashAmount(item);
+      if (item.flowDirection === "入金") totals[item.dealId].inflow += amount;
+      else totals[item.dealId].outflow += amount;
+    });
+    state.recognitions.forEach(function(item) {
+      if (!totals[item.dealId]) totals[item.dealId] = { outflow: 0, inflow: 0, sales: 0, profit: 0 };
+      totals[item.dealId].sales += item.salesAmountTaxEx;
+      totals[item.dealId].profit += item.profitAmountTaxEx;
+    });
+    return totals;
+  }
+
+  function computeActivitySummaries() {
+    const summaries = {};
+    state.deals.forEach(function(item) {
+      summaries[item.id] = createEmptyActivitySummary();
+    });
+    state.progressLogs.forEach(function(item) {
+      if (!summaries[item.dealId]) summaries[item.dealId] = createEmptyActivitySummary();
+      const summary = summaries[item.dealId];
+      const lastDate = item.loggedOn || item.nextActionOn || "";
+      if (lastDate && (!summary.lastLoggedOn || lastDate >= summary.lastLoggedOn)) {
+        summary.lastLoggedOn = item.loggedOn || item.nextActionOn || "";
+        summary.lastSummary = [item.activityPhase, item.summary].filter(Boolean).join(" / ");
+      }
+      if (item.activityStatus !== "完了") {
+        summary.openCount += 1;
+        const label = [item.activityPhase, item.nextAction || item.summary].filter(Boolean).join(" / ");
+        if (label) summary.openItems.push(label);
+        if (item.nextActionOn && (!summary.nextActionOn || item.nextActionOn < summary.nextActionOn)) {
+          summary.nextActionOn = item.nextActionOn;
+          summary.nextAction = item.nextAction || item.summary || "";
+        } else if (!summary.nextAction && (item.nextAction || item.summary)) {
+          summary.nextAction = item.nextAction || item.summary || "";
+        }
+      }
+      if (item.memo) {
+        summary.memo = item.memo;
+      }
+    });
+    Object.keys(summaries).forEach(function(key) {
+      summaries[key].openSummary = summaries[key].openItems.slice(0, 2).join(" / ");
+    });
+    return summaries;
+  }
+
+  function createEmptyActivitySummary() {
+    return {
+      lastLoggedOn: "",
+      lastSummary: "",
+      nextActionOn: "",
+      nextAction: "",
+      openCount: 0,
+      openItems: [],
+      openSummary: "",
+      memo: ""
+    };
+  }
+
+  function computeLoanSummary(dealId, defaultFlag) {
+    return state.cashouts.reduce(function(summary, item) {
+      if (item.dealId !== dealId) return summary;
+      if (!isLoanFlow(item)) return summary;
+      summary.hasLoan = true;
+      summary.paymentAmount += loanAmount(item);
+      if (item.scheduledOn && (!summary.scheduledOn || item.scheduledOn < summary.scheduledOn)) {
+        summary.scheduledOn = item.scheduledOn;
+      }
+      if (item.progressNote) {
+        summary.progress = item.progressNote;
+      }
+      return summary;
+    }, {
+      hasLoan: defaultFlag === "あり",
+      paymentAmount: 0,
+      scheduledOn: "",
+      progress: ""
+    });
+  }
+
+  function dealLabelById(dealId) {
+    const deal = state.deals.find(function(item) { return item.id === dealId; });
+    if (!deal) return "-";
+    return [deal.caseNumber, deal.vehicleKey, deal.caseName, deal.buyerName].filter(Boolean).join(" / ");
+  }
+
+  function dealOwnershipById(dealId) {
+    const deal = state.deals.find(function(item) { return item.id === dealId; });
+    if (!deal) return "-";
+    return joinLabel(deal.ownerType, deal.ownerName);
+  }
+
+  function sanitizeState(payload) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    return {
+      spreadsheetUrl: String(source.spreadsheetUrl || ""),
+      appUrl: String(source.appUrl || ""),
+      options: source.options || {
+        brands: [],
+        sourceTypes: [],
+        ownerTypes: [],
+        custodyTypes: [],
+        buyerTypes: [],
+        ownershipSchemes: [],
+        settlementModes: [],
+        dealTypes: [],
+        progress: [],
+        inventoryStages: [],
+        recognitionRules: [],
+        loanFlags: [],
+        activityKinds: [],
+        activityPhases: [],
+        activityStatuses: [],
+        flowTypes: [],
+        flowDirections: [],
+        counterpartyTypes: [],
+        moneyLanes: [],
+        targetFlags: [],
+        recognitionTypes: [],
+        salesTypes: []
+      },
+      deals: Array.isArray(source.deals) ? source.deals.map(function(item) {
+        return {
+          id: cleanText(item.id) || createId(),
+          caseNumber: cleanText(item.caseNumber),
+          caseName: cleanText(item.caseName),
+          brand: cleanText(item.brand),
+          vehicleName: cleanText(item.vehicleName),
+          vehicleKey: cleanText(item.vehicleKey),
+          sourceType: cleanText(item.sourceType),
+          sourceName: cleanText(item.sourceName),
+          ownerType: cleanText(item.ownerType),
+          ownerName: cleanText(item.ownerName),
+          custodyType: cleanText(item.custodyType),
+          custodyName: cleanText(item.custodyName),
+          buyerType: cleanText(item.buyerType),
+          buyerName: cleanText(item.buyerName),
+          ownershipScheme: cleanText(item.ownershipScheme),
+          settlementMode: cleanText(item.settlementMode),
+          dealType: cleanText(item.dealType),
+          progress: cleanText(item.progress),
+          inventoryStage: cleanText(item.inventoryStage),
+          recognitionRule: cleanText(item.recognitionRule),
+          loanSettlement: cleanText(item.loanSettlement),
+          caseDate: cleanText(item.caseDate),
+          orderDate: cleanText(item.orderDate),
+          registrationPlanDate: cleanText(item.registrationPlanDate),
+          registrationDate: cleanText(item.registrationDate),
+          saleAmountTaxIn: normalizeNumber(item.saleAmountTaxIn),
+          saleAmountTaxEx: normalizeNumber(item.saleAmountTaxEx),
+          expectedProfit: normalizeNumber(item.expectedProfit),
+          confirmedProfit: normalizeNumber(item.confirmedProfit),
+          referralSales: normalizeNumber(item.referralSales),
+          referralProfit: normalizeNumber(item.referralProfit),
+          relatedCase: cleanText(item.relatedCase),
+          memo: cleanText(item.memo)
+        };
+      }) : [],
+      cashouts: Array.isArray(source.cashouts) ? source.cashouts.map(function(item) {
+        return {
+          id: cleanText(item.id) || createId(),
+          dealId: cleanText(item.dealId),
+          occurredOn: cleanText(item.occurredOn),
+          flowType: cleanText(item.flowType),
+          flowDirection: cleanText(item.flowDirection),
+          vehicleName: cleanText(item.vehicleName),
+          caseLabel: cleanText(item.caseLabel),
+          moneyLane: cleanText(item.moneyLane),
+          counterpartyType: cleanText(item.counterpartyType),
+          counterpartyName: cleanText(item.counterpartyName),
+          appraisalAmount: normalizeNumber(item.appraisalAmount),
+          purchaseAmount: normalizeNumber(item.purchaseAmount),
+          loanBalance: normalizeNumber(item.loanBalance),
+          loanPaymentAmount: normalizeNumber(item.loanPaymentAmount),
+          cashMovementAmount: normalizeNumber(item.cashMovementAmount),
+          scheduledOn: cleanText(item.scheduledOn),
+          revenueTarget: cleanText(item.revenueTarget),
+          profitTarget: cleanText(item.profitTarget),
+          relatedCase: cleanText(item.relatedCase),
+          progressNote: cleanText(item.progressNote),
+          memo: cleanText(item.memo)
+        };
+      }) : [],
+      progressLogs: Array.isArray(source.progressLogs) ? source.progressLogs.map(function(item) {
+        return {
+          id: cleanText(item.id) || createId(),
+          dealId: cleanText(item.dealId),
+          loggedOn: cleanText(item.loggedOn),
+          activityKind: cleanText(item.activityKind),
+          activityPhase: cleanText(item.activityPhase),
+          counterpartyType: cleanText(item.counterpartyType),
+          counterpartyName: cleanText(item.counterpartyName),
+          summary: cleanText(item.summary),
+          nextActionOn: cleanText(item.nextActionOn),
+          nextAction: cleanText(item.nextAction),
+          activityStatus: cleanText(item.activityStatus),
+          progressUpdate: cleanText(item.progressUpdate),
+          inventoryUpdate: cleanText(item.inventoryUpdate),
+          memo: cleanText(item.memo)
+        };
+      }) : [],
+      recognitions: Array.isArray(source.recognitions) ? source.recognitions.map(function(item) {
+        return {
+          id: cleanText(item.id) || createId(),
+          dealId: cleanText(item.dealId),
+          recognizedOn: cleanText(item.recognizedOn),
+          recognitionType: cleanText(item.recognitionType),
+          salesType: cleanText(item.salesType),
+          salesAmountTaxEx: normalizeNumber(item.salesAmountTaxEx),
+          profitAmountTaxEx: normalizeNumber(item.profitAmountTaxEx),
+          confirmationRule: cleanText(item.confirmationRule),
+          linkedParty: cleanText(item.linkedParty),
+          memo: cleanText(item.memo)
+        };
+      }) : []
+    };
+  }
+
+  function renderEmptyState(colspan) {
+    return els.emptyStateTemplate.innerHTML.replace("colspan=\"9\"", "colspan=\"" + colspan + "\"");
+  }
+
+  function joinLabel(left, right) {
+    return [left, right].filter(Boolean).join(" / ") || "-";
+  }
+
+  function cashAmount(item) {
+    const generic = normalizeNumber(item.cashMovementAmount);
+    if (generic) return generic;
+    return normalizeNumber(item.purchaseAmount) + normalizeNumber(item.loanPaymentAmount);
+  }
+
+  function loanAmount(item) {
+    return normalizeNumber(item.loanPaymentAmount) || normalizeNumber(item.cashMovementAmount);
+  }
+
+  function isLoanFlow(item) {
+    return item.flowType === "残債一括返済"
+      || item.counterpartyType === "ローン会社"
+      || normalizeNumber(item.loanBalance) > 0
+      || normalizeNumber(item.loanPaymentAmount) > 0;
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(Number(value) || 0);
+  }
+
+  function formatDate(value) {
+    return cleanText(value) || "-";
+  }
+
+  function cleanText(value) {
+    return String(value == null ? "" : value).trim();
+  }
+
+  function normalizeNumber(value) {
+    const normalized = Number(String(value == null ? "" : value).replace(/,/g, "").trim());
+    return Number.isFinite(normalized) ? normalized : 0;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function createId() {
+    return "vs_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  }
+})();
+</script>

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/hasegawaryou11/Downloads/Cursol/website_design/serve.py", "8765"],
+      "port": 8765,
+      "autoPort": false
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "scanned": [],
+  "pending_moves": {
+    "success": [],
+    "error": []
+  },
+  "bank_rows": 194,
+  "sales_rows": 210,
+  "forecast_rows": 86,
+  "review_rows": 22,
+  "deposit_rows": 64,
+  "withdrawal_rows": 122
+}
