@@ -837,7 +837,7 @@ function fetchPaymentListData_() {
         if (!(amount > 0)) return;
         const parts = monthCol.ym.split('/').map(Number);
         const date = new Date(parts[0], parts[1], 0);
-        records.push({
+        const rec = {
           date,
           amount,
           direction: 'expense',
@@ -851,7 +851,9 @@ function fetchPaymentListData_() {
             normalizeCompareName_(rawName),
             normalizeCompareName_(summary || categoryLabel || '')
           ].join(':')
-        });
+        };
+        tagConquestPlannedRecord_(rec);
+        records.push(rec);
       });
     }
     return filterCashflowRecordsByTestMonth_(records);
@@ -895,7 +897,7 @@ function fetchReceivableForecastData_() {
 
       if (conquestLabel && conquestAmount > 0) {
         const conquestKey = 'receivable:conquest:' + monthKey + ':' + normalizeCompareName_(conquestLabel);
-        records.push({
+        const conquestRec = {
           date: dueDate,
           amount: conquestAmount,
           direction: 'income',
@@ -903,12 +905,14 @@ function fetchReceivableForecastData_() {
           rawName: conquestLabel,
           sourceType: 'planned_auto',
           forecastKey: conquestKey
-        });
+        };
+        tagConquestPlannedRecord_(conquestRec);
+        records.push(conquestRec);
       }
 
       if (arLabel && arAmount > 0) {
         const arKey = 'receivable:ar:' + monthKey + ':' + normalizeCompareName_(arLabel);
-        records.push({
+        const arRec = {
           date: dueDate,
           amount: arAmount,
           direction: 'income',
@@ -916,7 +920,9 @@ function fetchReceivableForecastData_() {
           rawName: arLabel,
           sourceType: 'planned_auto',
           forecastKey: arKey
-        });
+        };
+        tagConquestPlannedRecord_(arRec);
+        records.push(arRec);
       }
     });
 
@@ -952,7 +958,7 @@ function fetchReceivableForecastDetailData_(sheet) {
     const amount = Number(row[amountIdx] || 0);
     if (!dueDate || !kind || !label || !(amount > 0)) return records;
 
-    records.push({
+    const rec = {
       date: dueDate,
       amount: amount,
       direction: 'income',
@@ -972,9 +978,11 @@ function fetchReceivableForecastDetailData_(sheet) {
       reconcileCustNo: custNoIdx >= 0 ? row[custNoIdx] : '',
       reconcileBucket: kind,
       reconcileBillTo: billToIdx >= 0 ? row[billToIdx] : '',
-      settlementGroup: settlementGroupIdx >= 0 ? row[settlementGroupIdx] : '',
-      detailKind: detailKindIdx >= 0 ? row[detailKindIdx] : ''
-    });
+      settlementGroup: settlementGroupIdx >= 0 ? String(row[settlementGroupIdx] || '').trim() : '',
+      detailKind: detailKindIdx >= 0 ? String(row[detailKindIdx] || '').trim() : ''
+    };
+    tagConquestPlannedRecord_(rec);
+    records.push(rec);
     return records;
   }, []);
   return filterCashflowRecordsByTestMonth_(records);
@@ -990,38 +998,90 @@ function isConquestActualRecord_(record) {
   return /コンクエスト|ｺﾝｸｴｽﾄ/i.test(raw);
 }
 
-function clearForecastEntriesBySettlementGroup_(sheet, settlementGroup, cachedNotes, cachedValues) {
-  if (!sheet || !settlementGroup || sheet.getLastRow() < 2) {
-    return { clearedCount: 0, clearedAmount: 0 };
+function isConquestPlannedHay_(record) {
+  if (!record) return false;
+  const hay = [
+    record.rawName,
+    record.summary,
+    record.reconcileBillTo,
+    record.categoryLabel
+  ].filter(Boolean).map(String).join(' ');
+  return /コンクエスト|ｺﾝｸｴｽﾄ/i.test(hay);
+}
+
+function inferConquestDetailKind_(record) {
+  const name = String((record && record.rawName) || '');
+  if (/分割|返済|デモカー|466712/i.test(name)) return 'recurring';
+  if (/紹介料/.test(name)) return 'referral_fee';
+  if (/経費/.test(name)) return 'expense_invoice';
+  if (/下取/.test(name)) return 'tradein_purchase';
+  if (/営業部門/.test(name)) return 'sales_dept_invoice';
+  if (/広島|JLR.*請求/i.test(name)) return 'jlr_invoice';
+  if (/粗利|月分/.test(name)) return 'gross_invoice';
+  if (/様/.test(name)) return 'jlr_detail';
+  return 'conquest_misc';
+}
+
+function tagConquestPlannedRecord_(record) {
+  if (!record) return record;
+  if (record.settlementGroup) {
+    if (!record.detailKind) record.detailKind = inferConquestDetailKind_(record);
+    return record;
   }
+  if (!isConquestPlannedHay_(record)) return record;
+  const group = buildConquestSettlementGroupKey_(record.date);
+  if (!group) return record;
+  record.settlementGroup = group;
+  if (!record.detailKind) record.detailKind = inferConquestDetailKind_(record);
+  return record;
+}
 
-  const slots = getAllSlotsForDirection_('income');
-  let clearedCount = 0;
-  let clearedAmount = 0;
+function markForecastEntriesBySettlementGroup_(sheet, direction, settlementGroup, settledKey, cachedNotes) {
+  if (!sheet || !settlementGroup || sheet.getLastRow() < 2) {
+    return { markedCount: 0, markedAmount: 0 };
+  }
+  const slots = getAllSlotsForDirection_(direction);
+  if (!slots || !slots.length) return { markedCount: 0, markedAmount: 0 };
 
-  for (let row = 2; row <= sheet.getLastRow(); row++) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const notesMatrix = cachedNotes || sheet.getRange(1, 1, lastRow, lastCol).getNotes();
+
+  let markedCount = 0;
+  let markedAmount = 0;
+  const stampedAt = Utilities.formatDate(new Date(), getSpreadsheetTimezone_(), 'yyyy/MM/dd HH:mm:ss');
+
+  for (let row = 2; row <= lastRow; row++) {
     slots.forEach(function(slot) {
-      const note = getCachedSlotNote_(row, slot, cachedNotes);
+      const labelCol = columnLetterToIndex_(slot.label) - 1;
+      const amountCol = columnLetterToIndex_(slot.amount) - 1;
+      const rowNotes = notesMatrix[row - 1] || [];
+      const note = String(rowNotes[labelCol] || rowNotes[amountCol] || '').trim();
+      if (!note) return;
+
       const source = extractNoteValue_(note, 'source');
       const noteSettlementGroup = extractNoteValue_(note, 'settlementGroup');
       if (source !== 'planned_auto' || noteSettlementGroup !== settlementGroup) return;
-
-      const amountValue = cachedValues
-        ? getCachedCellNumber_(sheet, row, slot.amount, cachedValues)
-        : Number(sheet.getRange(slot.amount + row).getValue() || 0);
-      clearedAmount += Number(amountValue || 0);
+      if (extractNoteValue_(note, 'settledKey') === settledKey) return;
 
       const labelCell = sheet.getRange(slot.label + row);
       const amountCell = sheet.getRange(slot.amount + row);
-      labelCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setNote('');
-      amountCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setNote('');
-      clearedCount++;
+      const amount = Number(amountCell.getValue() || 0);
+      markedAmount += amount;
+      markedCount++;
+
+      labelCell.setFontLine('line-through');
+      amountCell.setFontLine('line-through');
+
+      const newNote = note + '\nsettled=' + stampedAt + '\nsettledKey=' + settledKey;
+      labelCell.setNote(newNote);
+      amountCell.setNote(newNote);
     });
   }
 
   return {
-    clearedCount: clearedCount,
-    clearedAmount: Math.round(clearedAmount)
+    markedCount: markedCount,
+    markedAmount: Math.round(markedAmount)
   };
 }
 
@@ -1038,7 +1098,30 @@ function applyConquestSettlementActual_(sheet, record, cachedValues, cachedBCol,
     return true;
   }
 
-  const cleared = clearForecastEntriesBySettlementGroup_(sheet, settlementGroup, cachedNotes, cachedValues);
+  const settledKey = settlementGroup + '/' + dateKey + '/' + Math.round(Number(record.amount || 0));
+  const term = resolveTermBySheetName_(sheet.getName());
+  let totalMarked = 0;
+  let totalMarkedAmount = 0;
+
+  if (term) {
+    const ss = sheet.getParent();
+    [
+      { name: term.incomeSheet, dir: 'income' },
+      { name: term.expenseSheet, dir: 'expense' }
+    ].forEach(function(spec) {
+      const target = spec.name === sheet.getName() ? sheet : ss.getSheetByName(spec.name);
+      if (!target) return;
+      const notes = spec.name === sheet.getName() ? cachedNotes : null;
+      const marked = markForecastEntriesBySettlementGroup_(target, spec.dir, settlementGroup, settledKey, notes);
+      totalMarked += marked.markedCount;
+      totalMarkedAmount += marked.markedAmount;
+    });
+  } else {
+    const marked = markForecastEntriesBySettlementGroup_(sheet, 'income', settlementGroup, settledKey, cachedNotes);
+    totalMarked = marked.markedCount;
+    totalMarkedAmount = marked.markedAmount;
+  }
+
   const actualRecord = {
     date: record.date,
     amount: record.amount,
@@ -1048,7 +1131,10 @@ function applyConquestSettlementActual_(sheet, record, cachedValues, cachedBCol,
     originalRawName: record.rawName,
     sourceType: 'actual_auto',
     settlementGroup: settlementGroup,
-    detailKind: 'settlement_actual'
+    detailKind: 'settlement_actual',
+    settledKey: settledKey,
+    forecastKey: 'conquest_settlement_actual:' + settledKey,
+    isConquestSettlement: true
   };
 
   const block = findDateBlock_(sheet, baseRow, dateKey, cachedBCol);
@@ -1088,7 +1174,7 @@ function applyConquestSettlementActual_(sheet, record, cachedValues, cachedBCol,
     actualRecord.rawName,
     actualRecord.amount,
     '',
-    '相殺グループ=' + settlementGroup + ' / 予定消込=' + cleared.clearedCount + '件 / 予定合計=' + cleared.clearedAmount
+    '相殺グループ=' + settlementGroup + ' / 予定マーク=' + totalMarked + '件 / 予定合計=' + totalMarkedAmount
   );
 
   return written || cleared.clearedCount > 0;
@@ -1141,6 +1227,14 @@ function syncActualWithAI(options) {
     )) {
       count++;
       refreshSheetCaches_(targetSheet, valuesCache, bColCache, bgsCache, notesCache);
+      const conquestTerm = resolveTermBySheetName_(sheetName);
+      if (conquestTerm) {
+        const expenseSheet = sheetCache[conquestTerm.expenseSheet] || ss.getSheetByName(conquestTerm.expenseSheet);
+        if (expenseSheet) {
+          sheetCache[conquestTerm.expenseSheet] = expenseSheet;
+          refreshSheetCaches_(expenseSheet, valuesCache, bColCache, bgsCache, notesCache);
+        }
+      }
       return;
     }
 
@@ -1387,16 +1481,22 @@ function writeRecordWithOverflow_(sheet, baseRow, dKey, record, bgColor, cachedV
   const block = findDateBlock_(sheet, baseRow, dKey, cachedBCol);
   const exactMatch = findMatchingRecordInBlock_(sheet, block.startRow, block.endRow, record, cachedValues, cachedBgs);
   if (exactMatch) {
-    if (record.sourceType === 'actual_auto' && exactMatch.origin !== 'actual_auto') {
+    if (record.isConquestSettlement) {
+      if (exactMatch.origin === 'actual_auto') {
+        appendLog_('SKIP_DUP', sheet.getName(), baseRow, dKey, record.category, record.rawName, record.amount, '', 'コンクエスト相殺実績は既に反映済み');
+        return false;
+      }
+    } else if (record.sourceType === 'actual_auto' && exactMatch.origin !== 'actual_auto') {
       overwriteSlotWithRecord_(sheet, exactMatch.row, exactMatch.slot, record, bgColor, { previousLabel: exactMatch.name });
       appendLog_('ACTUAL_CONVERT', sheet.getName(), exactMatch.row, dKey, record.category, record.rawName, record.amount, exactMatch.slot.label, '同日既存見込みを実績へ変換');
       return true;
+    } else {
+      appendLog_('SKIP_DUP', sheet.getName(), baseRow, dKey, record.category, record.rawName, record.amount, '', '同日重複のためスキップ');
+      return false;
     }
-    appendLog_('SKIP_DUP', sheet.getName(), baseRow, dKey, record.category, record.rawName, record.amount, '', '同日重複のためスキップ');
-    return false;
   }
 
-  if (record.sourceType === 'actual_auto') {
+  if (record.sourceType === 'actual_auto' && !record.isConquestSettlement) {
     const convertible = findConvertibleForecastInBlock_(sheet, block.startRow, block.endRow, record, cachedValues, cachedBgs);
     if (convertible) {
       overwriteSlotWithRecord_(sheet, convertible.row, convertible.slot, record, bgColor, { previousLabel: convertible.name });
@@ -2083,6 +2183,125 @@ function setupCashflowSystem() {
   Logger.log('セットアップ完了: 修正ログ・近傍重複監査シートを初期化しました。');
 }
 
+const CONQUEST_MARCH_TEST_SOURCES = {
+  sales: { name: '営業用', id: '1QNctVAnkattCX9dyT9DBmaPXWF9-nsfmZwEtEp4t1R8' },
+  intake: { name: '【最新】入金一覧', id: '1wX6LR1ssqThgPAIHRyUNeuvROsnXqDMcwFbMCj1PB8M' },
+  payments: { name: '支払一覧', id: '12Z7hFDO9f8JMTdVYqNCx_1QbgjXmoAqWYJDiUkakuHE' },
+  cashflow: { name: 'キャッシュフロー表0515', id: '1KrtufPs4-1ZsEGPp9j9PCpYpg0knXGW5jMqospmI7UU' }
+};
+
+function setupConquestMarchTest_() {
+  const tag = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
+  const prefix = '[TEST_2026-03_' + tag + '] ';
+  const copied = {};
+
+  Object.keys(CONQUEST_MARCH_TEST_SOURCES).forEach(function(key) {
+    const source = CONQUEST_MARCH_TEST_SOURCES[key];
+    const file = DriveApp.getFileById(source.id);
+    const copy = file.makeCopy(prefix + source.name);
+    copied[key] = {
+      key: key,
+      name: source.name,
+      id: copy.getId(),
+      url: 'https://docs.google.com/spreadsheets/d/' + copy.getId() + '/edit'
+    };
+  });
+
+  writeConquestMarchTestSettings_(copied);
+  writeConquestMarchTestManifest_(copied, prefix);
+
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(CASHFLOW_SETTING_KEYS.TARGET_SPREADSHEET_ID, copied.cashflow.id);
+  props.setProperty(CASHFLOW_SETTING_KEYS.ACTUAL_SOURCE_SPREADSHEET_ID, copied.intake.id);
+  props.setProperty(CASHFLOW_SETTING_KEYS.RECEIVABLE_SOURCE_SPREADSHEET_ID, copied.intake.id);
+  props.setProperty(CASHFLOW_SETTING_KEYS.PAYMENT_SOURCE_SPREADSHEET_ID, copied.payments.id);
+  props.setProperty(CASHFLOW_SETTING_KEYS.TEST_MONTH, '2026/03');
+
+  ensureCashflowWorkflowReady_();
+  const result = runCashflowRefresh_({ silent: true });
+
+  const report = [
+    'コンクエスト3月分テスト完了',
+    'タグ: ' + prefix,
+    '複製CF: ' + copied.cashflow.url,
+    '複製入金一覧: ' + copied.intake.url,
+    '複製支払一覧: ' + copied.payments.url,
+    '複製営業用: ' + copied.sales.url,
+    '反映: 支払い予定=' + result.plannedExpenseCount + '件 / 入金予定=' + result.plannedIncomeCount + '件 / 銀行実績=' + result.actualCount + '件'
+  ].join('\n');
+  Logger.log(report);
+  return { tag: prefix, copied: copied, result: result };
+}
+
+function setupConquestMarchTest() {
+  return setupConquestMarchTest_();
+}
+
+function clearConquestMarchTestScriptProperties() {
+  const props = PropertiesService.getScriptProperties();
+  [
+    CASHFLOW_SETTING_KEYS.TARGET_SPREADSHEET_ID,
+    CASHFLOW_SETTING_KEYS.ACTUAL_SOURCE_SPREADSHEET_ID,
+    CASHFLOW_SETTING_KEYS.RECEIVABLE_SOURCE_SPREADSHEET_ID,
+    CASHFLOW_SETTING_KEYS.PAYMENT_SOURCE_SPREADSHEET_ID,
+    CASHFLOW_SETTING_KEYS.TEST_MONTH
+  ].forEach(function(key) { props.deleteProperty(key); });
+  Logger.log('テスト用ScriptPropertyを削除しました。本番ターゲットに戻ります。');
+}
+
+function writeConquestMarchTestSettings_(copied) {
+  const ss = SpreadsheetApp.openById(copied.cashflow.id);
+  let sheet = ss.getSheetByName(CASHFLOW.SHEETS.SETTINGS);
+  if (!sheet) sheet = ss.insertSheet(CASHFLOW.SHEETS.SETTINGS);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, 3).setValues([['キー', '値', 'メモ']]).setBackground('#efefef').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+
+  const rowMap = {};
+  if (sheet.getLastRow() >= 2) {
+    const existing = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    existing.forEach(function(row, idx) {
+      const key = String(row[0] || '').trim();
+      if (key) rowMap[key] = idx + 2;
+    });
+  }
+
+  const settings = [
+    [CASHFLOW_SETTING_KEYS.TARGET_SPREADSHEET_ID, copied.cashflow.id, 'CF反映先（テスト複製）'],
+    [CASHFLOW_SETTING_KEYS.ACTUAL_SOURCE_SPREADSHEET_ID, copied.intake.id, '銀行実績ソース（テスト複製）'],
+    [CASHFLOW_SETTING_KEYS.RECEIVABLE_SOURCE_SPREADSHEET_ID, copied.intake.id, '売掛見込みソース（テスト複製）'],
+    [CASHFLOW_SETTING_KEYS.PAYMENT_SOURCE_SPREADSHEET_ID, copied.payments.id, '支払い予定ソース（テスト複製）'],
+    [CASHFLOW_SETTING_KEYS.TEST_MONTH, '2026/03', '月絞り（YYYY/MM）']
+  ];
+
+  settings.forEach(function(row) {
+    const rowNumber = rowMap[row[0]];
+    if (rowNumber) {
+      sheet.getRange(rowNumber, 1, 1, 3).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+  });
+}
+
+function writeConquestMarchTestManifest_(copied, prefix) {
+  const ss = SpreadsheetApp.openById(copied.cashflow.id);
+  let sheet = ss.getSheetByName('テスト環境情報');
+  if (!sheet) sheet = ss.insertSheet('テスト環境情報');
+  else sheet.clearContents();
+
+  const rows = [
+    ['作成タグ', prefix],
+    ['種別', '元ファイル名', '複製ID', '複製URL']
+  ];
+  Object.keys(copied).forEach(function(key) {
+    const item = copied[key];
+    rows.push([key, item.name, item.id, item.url]);
+  });
+  sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+}
+
 function ensureSheet_(ss, name, headers) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) sheet = ss.insertSheet(name);
@@ -2131,14 +2350,24 @@ function syncRecurringEntries(options) {
         generateDates_(rule, term.start, term.end).forEach(dKey => {
           const baseRow = findRowByDateKey_(targetSheet, dKey);
           if (baseRow <= 0) return;
-          writeRecordWithOverflow_(targetSheet, baseRow, dKey, {
+          const recurringRecord = {
             direction: rule.dir,
             category: rule.cat,
             rawName: rule.name,
             amount: rule.amt,
             summary: rule.summary,
-            sourceType: 'planned_auto'
-          }, CASHFLOW.COLORS.PLANNED_AUTO);
+            sourceType: 'planned_auto',
+            date: parseDateKeyWithinTerm_(dKey, term) || new Date(),
+            forecastKey: [
+              'recurring',
+              term.key,
+              dKey,
+              normalizeCompareName_(rule.name),
+              Math.round(Number(rule.amt || 0))
+            ].join(':')
+          };
+          tagConquestPlannedRecord_(recurringRecord);
+          writeRecordWithOverflow_(targetSheet, baseRow, dKey, recurringRecord, CASHFLOW.COLORS.PLANNED_AUTO);
         });
       });
     });
@@ -2655,8 +2884,8 @@ function clearStaleForecastCellsOnSheet_(sheet, slots, validSet, prefix) {
   targets.forEach(target => {
     const labelCell = sheet.getRange(target.slot.label + target.row);
     const amountCell = sheet.getRange(target.slot.amount + target.row);
-    labelCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setNote('');
-    amountCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setNote('');
+    labelCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setFontLine('none').setNote('');
+    amountCell.clearContent().setBackground(null).setFontWeight('normal').setFontColor('#000000').setFontLine('none').setNote('');
   });
 }
 
