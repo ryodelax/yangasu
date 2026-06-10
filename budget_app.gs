@@ -14,6 +14,25 @@ const BUDGET_APP = {
   }
 };
 
+const BUDGET_APP_CATEGORY_CATALOG = [
+  { name: '交通費', group: 'business', description: '電車・飛行機・新幹線など', defaultBudget: 48000 },
+  { name: '会議費', group: 'business', description: '打ち合わせ・カフェ利用', defaultBudget: 0 },
+  { name: '接待交際費', group: 'business', description: '会食・接待関連', defaultBudget: 0 },
+  { name: '福利厚生費', group: 'business', description: '従業員向け支出', defaultBudget: 0 },
+  { name: '消耗品費', group: 'business', description: '備品・日用品', defaultBudget: 0 },
+  { name: '通信費', group: 'business', description: 'スマホ・回線費', defaultBudget: 4000 },
+  { name: '広告宣伝費', group: 'business', description: '広告・販促費', defaultBudget: 0 },
+  { name: '外注費', group: 'business', description: '業務委託・制作費', defaultBudget: 20000 },
+  { name: '支払手数料', group: 'business', description: '税理士・振込手数料など', defaultBudget: 25000 },
+  { name: '法定福利費', group: 'business', description: '会社負担の社会保険等', defaultBudget: 44000 },
+  { name: '地代家賃', group: 'business', description: '家賃按分など', defaultBudget: 70000 },
+  { name: '水道光熱費', group: 'business', description: '電気・ガス・水道', defaultBudget: 0 },
+  { name: 'ホームページ維持費', group: 'business', description: 'サイト・ドメイン維持', defaultBudget: 0 },
+  { name: '租税公課', group: 'business', description: '事業に関する税公課', defaultBudget: 0 },
+  { name: '雑費', group: 'business', description: '上記以外の少額経費', defaultBudget: 0 },
+  { name: 'その他', group: 'review', description: 'あとで判定する支出', defaultBudget: 0 }
+];
+
 function isBudgetAppRequest_(e) {
   return !!(e && e.parameter && e.parameter.app === 'budget');
 }
@@ -161,9 +180,8 @@ function getBudgetAppPayload_() {
   return {
     selectedMonth: Utilities.formatDate(new Date(), BUDGET_APP.timezone, 'yyyy-MM'),
     spreadsheetUrl: ss.getUrl(),
-    categories: categories.length ? categories.map(function(item) {
-      return { id: String(item.id), name: String(item.name), budget: Number(item.budget) || 0 };
-    }) : getDefaultBudgetCategories_(),
+    categoryCatalog: getBudgetCategoryCatalog_(),
+    categories: normalizeBudgetCategories_(categories),
     incomeTargets: incomeTargets.length ? incomeTargets.map(function(item) {
       return { id: String(item.id), name: String(item.name), target: Number(item.target) || 0 };
     }) : getDefaultIncomeTargets_(),
@@ -217,7 +235,7 @@ function sanitizeBudgetPayload_(payload) {
   const source = payload && typeof payload === 'object' ? payload : {};
 
   return {
-    categories: sanitizeBudgetItems_(source.categories, 'budget'),
+    categories: normalizeBudgetCategories_(sanitizeBudgetItems_(source.categories, 'budget')),
     incomeTargets: sanitizeBudgetItems_(source.incomeTargets, 'target'),
     transactions: sanitizeBudgetTransactions_(source.transactions)
   };
@@ -276,15 +294,42 @@ function createBudgetId_() {
   return Utilities.getUuid();
 }
 
+function getBudgetCategoryCatalog_() {
+  return BUDGET_APP_CATEGORY_CATALOG.map(function(item) {
+    return {
+      name: item.name,
+      group: item.group,
+      description: item.description
+    };
+  });
+}
+
+function normalizeBudgetCategories_(items) {
+  const source = Array.isArray(items) ? items : [];
+  const byName = {};
+
+  source.forEach(function(item) {
+    const name = String(item && item.name || '').trim();
+    if (!name) return;
+    byName[name] = {
+      id: String(item.id || createBudgetId_()).trim(),
+      name: name,
+      budget: normalizeBudgetNumber_(item.budget)
+    };
+  });
+
+  return BUDGET_APP_CATEGORY_CATALOG.map(function(meta) {
+    const existing = byName[meta.name];
+    return existing ? existing : {
+      id: createBudgetId_(),
+      name: meta.name,
+      budget: normalizeBudgetNumber_(meta.defaultBudget)
+    };
+  });
+}
+
 function getDefaultBudgetCategories_() {
-  return [
-    { id: createBudgetId_(), name: '住居', budget: 80000 },
-    { id: createBudgetId_(), name: '食費', budget: 40000 },
-    { id: createBudgetId_(), name: '通信', budget: 12000 },
-    { id: createBudgetId_(), name: '移動', budget: 15000 },
-    { id: createBudgetId_(), name: '交際', budget: 20000 },
-    { id: createBudgetId_(), name: '投資・貯蓄', budget: 50000 }
-  ];
+  return normalizeBudgetCategories_([]);
 }
 
 function getDefaultIncomeTargets_() {

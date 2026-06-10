@@ -1,0 +1,5 @@
+# clasp push 対象外
+**/*.md
+.clasp.json
+.claspignore
+.git/**
