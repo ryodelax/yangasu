@@ -213,6 +213,18 @@ function onOpen() {
     Logger.log('サービス系メニュー初期化失敗: ' + error.message);
   }
 
+  try {
+    if (
+      typeof isAccountingBudgetSpreadsheet_ === 'function' &&
+      isAccountingBudgetSpreadsheet_(activeSpreadsheet) &&
+      typeof buildAccountingBudgetMenu_ === 'function'
+    ) {
+      buildAccountingBudgetMenu_();
+    }
+  } catch (error) {
+    Logger.log('Budget連携メニュー初期化失敗: ' + error.message);
+  }
+
   if (activeSpreadsheet.getId() === BANK_PDF_IMPORT.spreadsheetId || isNyukinRuntimeSpreadsheet_(activeSpreadsheet)) {
     buildUnifiedOperationsMenu_();
   }

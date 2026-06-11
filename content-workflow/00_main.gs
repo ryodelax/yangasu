@@ -82,6 +82,7 @@ function isDuplicateEvent_(eventId) {
 function handleSlashCommand_(e) {
   var cmd = (e.parameter.command || '').trim();
   if (cmd === '/コンテンツ生成') return handleContentCommand_(e);
+  if (cmd === '/note整形') return handlePublishCommand_(e);
   return handleArticleCommand_(e);
 }
 
@@ -135,5 +136,17 @@ function handleEvent_(event) {
         'かしこまりました。準備ができたら「はい」と返信してください。', briefTs);
     }
     return;
+  }
+
+  // --- Phase 4: Google Doc URL を検出 → NotebookLM素材として保存 ---
+  var nlmRec = findNotebookSession_(event.user, event.channel);
+  if (nlmRec && event.text && event.text.indexOf('docs.google.com') >= 0) {
+    var nlmTs = threadTsOf_(nlmRec);
+    if (nlmTs && event.thread_ts && String(event.thread_ts) !== nlmTs) return;
+    var urlMatch = event.text.match(/https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+[^\s]*/);
+    if (urlMatch) {
+      handleDocUrl_(nlmRec, urlMatch[0], event.channel, nlmTs || event.thread_ts || '');
+      return;
+    }
   }
 }

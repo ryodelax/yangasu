@@ -210,7 +210,12 @@ function processSubmission_(ss, tx, srcHeaders, srcVals, responseId) {
       const colIdx = currentHeaders.indexOf(hName) + 1;
       if (colIdx > 0) {
         const cell = tx.getRange(targetRow, colIdx);
-        cell.setValue(val);
+        // URLを含む文字列（エビデンス資料等）は、各URLをクリック可能なリンクにして書き込む
+        if (typeof val === 'string' && /https?:\/\//.test(val)) {
+          cell.setRichTextValue(buildEvidenceRichText_(val));
+        } else {
+          cell.setValue(val);
+        }
         if (format) cell.setNumberFormat(format);
       }
     };
@@ -319,3 +324,18 @@ function isoToDate_(v) {
   if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return new Date(s);
   return v;
 }
+
+// セル内の各URLをクリック可能なリンクにしたRichTextValueを返す（文字は変えない）
+// 例: "url1, url2" → 両方のURLが個別にクリック可能になる
+function buildEvidenceRichText_(text) {
+  const t = String(text == null ? '' : text);
+  const builder = SpreadsheetApp.newRichTextValue().setText(t);
+  const re = /https?:\/\/[^\s,、　]+/g; // 半角/全角スペース・カンマ・読点で区切る
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    if (!m[0]) { re.lastIndex++; continue; }
+    builder.setLinkUrl(m.index, m.index + m[0].length, m[0]);
+  }
+  return builder.build();
+}
+
