@@ -22,6 +22,7 @@
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0l-4 4m4-4l4 4M5 20h14"/></svg>',
   };
 
   const FB_TYPES = {
@@ -230,8 +231,15 @@
   function viewTranscripts() {
     let list = Store.transcripts.all();
     if (state.q) list = list.filter((t) => (t.title + t.content).toLowerCase().includes(state.q.toLowerCase()));
-    if (!list.length) return emptyState("doc", "文字起こしがありません", "案件を開いて打ち合わせの記録を追加できます。", "案件リストへ", "go-cases");
-    return list.map((t) => {
+    const head = `<div class="section-head" style="margin-bottom:18px;">
+        <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-import-tx="">${ic.upload}まとめて取り込み</button></div></div>`;
+    if (!list.length) {
+      const hasCases = Store.cases.all().length > 0;
+      return hasCases
+        ? head + emptyState("doc", "文字起こしがありません", "ChatGPTからコピペした文字起こしを、まとめて取り込めます。", "まとめて取り込み", "import-tx", "")
+        : emptyState("doc", "まず案件を作りましょう", "文字起こしは案件に紐づけて保存します。先に案件を1つ作成してください。", "案件を作成", "new-case");
+    }
+    return head + list.map((t) => {
       const c = Store.cases.get(t.caseId);
       return `<div class="item" data-open="${t.caseId}" style="cursor:pointer;">
         <div class="item-head">
@@ -364,7 +372,9 @@
   function detailTranscripts(c, tx) {
     return `
       <div class="section-head"><h2>文字起こし</h2><span class="count">${tx.length}件</span>
-        <div class="right"><button class="btn btn-primary btn-sm" data-new-tx="${c.id}">${ic.plus}記録を追加</button></div></div>
+        <div class="right">
+          <button class="btn btn-sm" data-import-tx="${c.id}">${ic.upload}まとめて取り込み</button>
+          <button class="btn btn-primary btn-sm" data-new-tx="${c.id}">${ic.plus}記録を追加</button></div></div>
       ${tx.length ? tx.map((t) => `
         <div class="item">
           <div class="item-head">
@@ -488,6 +498,72 @@
     };
   }
 
+  /* ChatGPTなどから複数の文字起こしをまとめて取り込む */
+  function importForm(fixedCaseId) {
+    const cases = Store.cases.all();
+    if (!cases.length) { toast("先に案件を作成してください"); caseForm(); return; }
+    const caseField = fixedCaseId
+      ? `<input type="hidden" id="i-case" value="${fixedCaseId}" />`
+      : `<div class="field"><label>取り込み先の案件 *</label>
+           <select id="i-case">${cases.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}</select></div>`;
+    openModal(`
+      <div class="modal-head"><h3>文字起こしをまとめて取り込み</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        ${caseField}
+        <div class="field-row">
+          <div class="field"><label>区切り方</label>
+            <select id="i-delim">
+              <option value="---">--- (ハイフン3つ) で区切る</option>
+              <option value="===">=== (イコール3つ) で区切る</option>
+              <option value="blank">空行2つで区切る</option>
+              <option value="none">区切らない（全部で1件）</option>
+            </select>
+          </div>
+          <div class="field"><label>日付</label><input type="date" id="i-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+        </div>
+        <div class="field"><label>貼り付け *</label>
+          <textarea class="big" id="i-text" placeholder="ChatGPTの会話をここに貼り付け…&#10;&#10;複数まとめる場合は、各会話のあいだに &#10;---&#10; のような区切り行を入れてください。&#10;各かたまりの1行目が自動でタイトルになります。"></textarea>
+          <div class="hint" id="i-count">各かたまりの先頭行がタイトル、残りが本文になります。会話ごとに <b>---</b> で区切ると複数件にまとまります。</div>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="doImport">取り込む</button></div>`);
+
+    const parse = () => {
+      const raw = $("#i-text").value;
+      const delim = $("#i-delim").value;
+      let chunks;
+      if (delim === "none") chunks = [raw];
+      else if (delim === "blank") chunks = raw.split(/\n[ \t]*\n[ \t]*\n+/);
+      else chunks = raw.split(new RegExp(`\\n[ \\t]*\\${delim[0]}{3,}[ \\t]*\\n`));
+      return chunks.map((s) => s.trim()).filter(Boolean);
+    };
+    const refresh = () => {
+      const n = parse().length;
+      $("#i-count").innerHTML = n ? `この内容で <b>${n}件</b> として取り込みます。` :
+        `各かたまりの先頭行がタイトル、残りが本文になります。会話ごとに <b>---</b> で区切ると複数件にまとまります。`;
+    };
+    $("#i-text").addEventListener("input", refresh);
+    $("#i-delim").addEventListener("change", refresh);
+
+    $("#doImport").onclick = () => {
+      const caseId = $("#i-case").value;
+      const date = $("#i-date").value;
+      const chunks = parse();
+      if (!chunks.length) { toast("取り込む内容を貼り付けてください"); return; }
+      chunks.forEach((chunk, i) => {
+        const lines = chunk.split("\n");
+        let title = (lines.find((l) => l.trim()) || `取り込み ${i + 1}`).trim().replace(/^#+\s*/, "");
+        if (title.length > 60) title = title.slice(0, 60) + "…";
+        Store.transcripts.add({ caseId, title, date, content: chunk });
+      });
+      toast(`${chunks.length}件の文字起こしを取り込みました`);
+      closeModal();
+      const c = Store.cases.get(caseId);
+      if (c) { state.caseId = caseId; state.tab = "transcripts"; go("detail", { caseId, tab: "transcripts" }); }
+      else render();
+    };
+  }
+
   function fbForm(caseId) {
     const opts = Object.entries(FB_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
     openModal(`
@@ -606,6 +682,7 @@
     if (el("[data-new-case]")) return caseForm();
     if ((t = el("[data-edit-case]"))) return caseForm(Store.cases.get(t.dataset.editCase));
     if ((t = el("[data-new-tx]"))) return txForm(t.dataset.newTx);
+    if ((t = el("[data-import-tx]"))) return importForm(t.dataset.importTx || null);
     if ((t = el("[data-new-fb]"))) return fbForm(t.dataset.newFb);
     if ((t = el("[data-new-ms]"))) return msForm(t.dataset.newMs);
     if ((t = el("[data-set-status]"))) {
@@ -624,6 +701,7 @@
       if (a === "new-case") return caseForm();
       if (a === "go-cases") return go("cases");
       if (a === "new-tx") return txForm(arg);
+      if (a === "import-tx") return importForm(arg || null);
       if (a === "new-fb") return fbForm(arg);
       if (a === "new-ms") return msForm(arg);
     }
