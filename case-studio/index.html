@@ -61,13 +61,13 @@
     <!-- ============ Main ============ -->
     <main class="main">
       <header class="topbar">
-        <button class="btn btn-ghost menu-btn" id="menuBtn">
+        <button class="btn btn-ghost menu-btn" id="menuBtn" aria-label="メニューを開閉">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="page-title" id="pageTitle">ダッシュボード<small id="pageSub">全体の状況をひと目で</small></div>
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-          <input type="text" id="globalSearch" placeholder="案件・文字起こしを検索…" />
+          <input type="text" id="globalSearch" placeholder="案件・文字起こしを検索…  ⌘K" aria-label="検索" />
         </div>
       </header>
       <div class="content" id="content"><!-- views injected here --></div>
@@ -76,7 +76,7 @@
 
   <!-- ============ Modal ============ -->
   <div class="overlay" id="overlay">
-    <div class="modal" id="modal"></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
   </div>
 
   <div class="toast-wrap" id="toastWrap"></div>

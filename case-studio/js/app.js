@@ -7,7 +7,7 @@
           openModal, closeModal, toast, confirmModal } = UI;
 
   const content = $("#content");
-  let state = { view: "dashboard", caseId: null, tab: "overview", filter: "all", q: "" };
+  let state = { view: "dashboard", caseId: null, tab: "overview", filter: "all", q: "", sort: "created" };
 
   /* ============ Icons ============ */
   const ic = {
@@ -126,19 +126,45 @@
   }
 
   /* ============ View: Cases ============ */
+  function sortCases(list) {
+    const arr = [...list];
+    if (state.sort === "due") {
+      arr.sort((a, b) => {
+        if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      });
+    } else if (state.sort === "progress") {
+      arr.sort((a, b) => (b.progress || 0) - (a.progress || 0));
+    } else if (state.sort === "title") {
+      arr.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ja"));
+    }
+    return arr; // "created" は Store.cases.all() の既定順（新しい順）を維持
+  }
+
   function viewCases() {
     let list = Store.cases.all();
     if (state.filter !== "all") list = list.filter((c) => c.status === state.filter);
     if (state.q) list = list.filter((c) => matchCase(c, state.q));
+    list = sortCases(list);
 
     const chips = [["all", "すべて"], ...Object.entries(Store.STATUSES).map(([k, v]) => [k, v.label])]
       .map(([k, l]) => `<div class="chip ${state.filter === k ? "active" : ""}" data-filter="${k}">${l}</div>`).join("");
 
-    const grid = list.length ? list.map(caseCard).join("") : emptyState("folder", "案件がありません", "右上のボタンから最初の案件を追加しましょう。", "案件を追加", "new-case");
+    const sortOpts = [["created", "新しい順"], ["due", "期限が近い順"], ["progress", "進捗が高い順"], ["title", "名前順"]]
+      .map(([k, l]) => `<option value="${k}" ${state.sort === k ? "selected" : ""}>${l}</option>`).join("");
+
+    const grid = list.length
+      ? list.map(caseCard).join("")
+      : (state.q ? emptyState("search", "見つかりませんでした", `「${esc(state.q)}」に一致する案件はありません。`, "検索をクリア", "clear-search")
+                 : emptyState("folder", "案件がありません", "右上のボタンから最初の案件を追加しましょう。", "案件を追加", "new-case"));
 
     return `
       <div class="section-head" style="margin-bottom:18px;">
-        <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-new-case>${ic.plus}案件を追加</button></div>
+        <span class="count">${list.length} 件</span>
+        <div class="right" style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+          <select data-sort aria-label="並び替え" style="width:auto;padding:9px 32px 9px 12px;">${sortOpts}</select>
+          <button class="btn btn-primary" data-new-case>${ic.plus}案件を追加</button>
+        </div>
       </div>
       <div class="filters">${chips}</div>
       <div class="case-grid">${grid}</div>`;
@@ -234,6 +260,7 @@
     const head = `<div class="section-head" style="margin-bottom:18px;">
         <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-import-tx="">${ic.upload}まとめて取り込み</button></div></div>`;
     if (!list.length) {
+      if (state.q) return head + emptyState("search", "見つかりませんでした", `「${esc(state.q)}」に一致する文字起こしはありません。`, "検索をクリア", "clear-search");
       const hasCases = Store.cases.all().length > 0;
       return hasCases
         ? head + emptyState("doc", "文字起こしがありません", "ChatGPTからコピペした文字起こしを、まとめて取り込めます。", "まとめて取り込み", "import-tx", "")
@@ -255,8 +282,10 @@
   /* ============ View: Feedback (global) ============ */
   function viewFeedback() {
     let list = Store.feedbacks.all();
-    if (state.q) list = list.filter((f) => f.content.toLowerCase().includes(state.q.toLowerCase()));
-    if (!list.length) return emptyState("star", "フィードバックがありません", "案件を開いて気づきや要望を記録しましょう。", "案件リストへ", "go-cases");
+    if (state.q) list = list.filter((f) => (f.content + (f.author || "")).toLowerCase().includes(state.q.toLowerCase()));
+    if (!list.length) return state.q
+      ? emptyState("search", "見つかりませんでした", `「${esc(state.q)}」に一致するフィードバックはありません。`, "検索をクリア", "clear-search")
+      : emptyState("star", "フィードバックがありません", "案件を開いて気づきや要望を記録しましょう。", "案件リストへ", "go-cases");
     return list.map((f) => {
       const c = Store.cases.get(f.caseId);
       const ft = FB_TYPES[f.type] || FB_TYPES.note;
@@ -309,7 +338,7 @@
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-sm" data-edit-case="${c.id}">${ic.edit}編集</button>
-          <button class="btn btn-sm btn-danger" data-del-case="${c.id}">${ic.trash}</button>
+          <button class="btn btn-sm btn-danger" data-del-case="${c.id}" aria-label="案件を削除">${ic.trash}</button>
         </div>
       </div>
       ${flowSteps(c)}
@@ -380,7 +409,10 @@
           <div class="item-head">
             <span class="it-title">${esc(t.title)}</span>
             <span class="it-date">${ic.cal}${fmtDate(t.date)}</span>
-            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-tx="${t.id}">${ic.trash}</button></div>
+            <div class="item-actions">
+              <button class="btn btn-ghost btn-sm" data-edit-tx="${t.id}" aria-label="編集">${ic.edit}</button>
+              <button class="btn btn-ghost btn-sm" data-del-tx="${t.id}" aria-label="削除">${ic.trash}</button>
+            </div>
           </div>
           <div class="item-body" id="tx-${t.id}">${esc(t.content)}</div>
         </div>`).join("") : emptyState("doc", "記録がありません", "打ち合わせの文字起こしを貼り付けて保存しましょう。", "記録を追加", "new-tx", c.id)}`;
@@ -398,7 +430,10 @@
             <span class="it-title">${esc(f.author || "匿名")}</span>
             <span class="pri" style="color:${ft.color};background:color-mix(in srgb,${ft.color} 16%,transparent);">${ft.label}</span>
             <span class="it-date">${relTime(f.createdAt)}</span>
-            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-fb="${f.id}">${ic.trash}</button></div>
+            <div class="item-actions">
+              <button class="btn btn-ghost btn-sm" data-edit-fb="${f.id}" aria-label="編集">${ic.edit}</button>
+              <button class="btn btn-ghost btn-sm" data-del-fb="${f.id}" aria-label="削除">${ic.trash}</button>
+            </div>
           </div>
           <div class="item-body">${esc(f.content)}</div>
         </div>`;
@@ -476,25 +511,28 @@
     };
   }
 
-  function txForm(caseId) {
+  function txForm(caseId, existing) {
+    const t0 = existing || {};
     openModal(`
-      <div class="modal-head"><h3>文字起こしを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-head"><h3>${existing ? "文字起こしを編集" : "文字起こしを追加"}</h3><div class="x" data-close aria-label="閉じる">${closeIcon()}</div></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label>タイトル *</label><input id="t-title" placeholder="例: 第2回 定例MTG" /></div>
-          <div class="field"><label>日付</label><input type="date" id="t-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+          <div class="field"><label>タイトル *</label><input id="t-title" value="${esc(t0.title || "")}" placeholder="例: 第2回 定例MTG" /></div>
+          <div class="field"><label>日付</label><input type="date" id="t-date" value="${esc(t0.date || new Date().toISOString().slice(0, 10))}" /></div>
         </div>
         <div class="field"><label>本文（文字起こし）*</label>
-          <textarea class="big" id="t-content" placeholder="打ち合わせの文字起こしを貼り付け…"></textarea>
+          <textarea class="big" id="t-content" placeholder="打ち合わせの文字起こしを貼り付け…">${esc(t0.content || "")}</textarea>
           <div class="hint">議事録ツールや録音アプリの書き起こしをそのまま貼り付けできます。</div>
         </div>
       </div>
-      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveTx">保存</button></div>`);
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveTx">${existing ? "保存" : "追加する"}</button></div>`);
     $("#saveTx").onclick = () => {
       const title = $("#t-title").value.trim(), c = $("#t-content").value.trim();
       if (!title || !c) { toast("タイトルと本文を入力してください"); return; }
-      Store.transcripts.add({ caseId, title, date: $("#t-date").value, content: c });
-      toast("文字起こしを保存しました"); closeModal(); render();
+      const data = { title, date: $("#t-date").value, content: c };
+      if (existing) { Store.transcripts.update(existing.id, data); toast("文字起こしを更新しました"); }
+      else { Store.transcripts.add({ caseId, ...data }); toast("文字起こしを保存しました"); }
+      closeModal(); render();
     };
   }
 
@@ -564,23 +602,26 @@
     };
   }
 
-  function fbForm(caseId) {
-    const opts = Object.entries(FB_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+  function fbForm(caseId, existing) {
+    const f0 = existing || {};
+    const opts = Object.entries(FB_TYPES).map(([k, v]) => `<option value="${k}" ${f0.type === k ? "selected" : ""}>${v.label}</option>`).join("");
     openModal(`
-      <div class="modal-head"><h3>フィードバックを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-head"><h3>${existing ? "フィードバックを編集" : "フィードバックを追加"}</h3><div class="x" data-close aria-label="閉じる">${closeIcon()}</div></div>
       <div class="modal-body">
         <div class="field-row">
-          <div class="field"><label>記入者</label><input id="b-author" placeholder="名前" value="長谷川" /></div>
+          <div class="field"><label>記入者</label><input id="b-author" placeholder="名前" value="${esc(f0.author || "長谷川")}" /></div>
           <div class="field"><label>種別</label><select id="b-type">${opts}</select></div>
         </div>
-        <div class="field"><label>内容 *</label><textarea id="b-content" placeholder="気づき・要望・課題など"></textarea></div>
+        <div class="field"><label>内容 *</label><textarea id="b-content" placeholder="気づき・要望・課題など">${esc(f0.content || "")}</textarea></div>
       </div>
-      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveFb">保存</button></div>`);
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveFb">${existing ? "保存" : "追加する"}</button></div>`);
     $("#saveFb").onclick = () => {
       const c = $("#b-content").value.trim();
       if (!c) { toast("内容を入力してください"); return; }
-      Store.feedbacks.add({ caseId, author: $("#b-author").value.trim() || "匿名", type: $("#b-type").value, content: c });
-      toast("フィードバックを保存しました"); closeModal(); render();
+      const data = { author: $("#b-author").value.trim() || "匿名", type: $("#b-type").value, content: c };
+      if (existing) { Store.feedbacks.update(existing.id, data); toast("フィードバックを更新しました"); }
+      else { Store.feedbacks.add({ caseId, ...data }); toast("フィードバックを保存しました"); }
+      closeModal(); render();
     };
   }
 
@@ -682,8 +723,10 @@
     if (el("[data-new-case]")) return caseForm();
     if ((t = el("[data-edit-case]"))) return caseForm(Store.cases.get(t.dataset.editCase));
     if ((t = el("[data-new-tx]"))) return txForm(t.dataset.newTx);
+    if ((t = el("[data-edit-tx]"))) return txForm(null, Store.transcripts.get(t.dataset.editTx));
     if ((t = el("[data-import-tx]"))) return importForm(t.dataset.importTx || null);
     if ((t = el("[data-new-fb]"))) return fbForm(t.dataset.newFb);
+    if ((t = el("[data-edit-fb]"))) return fbForm(null, Store.feedbacks.get(t.dataset.editFb));
     if ((t = el("[data-new-ms]"))) return msForm(t.dataset.newMs);
     if ((t = el("[data-set-status]"))) {
       const ns = t.dataset.setStatus;
@@ -704,13 +747,36 @@
       if (a === "import-tx") return importForm(arg || null);
       if (a === "new-fb") return fbForm(arg);
       if (a === "new-ms") return msForm(arg);
+      if (a === "clear-search") { state.q = ""; $("#globalSearch").value = ""; return render(); }
     }
+  });
+
+  // 並び替え（案件リスト）
+  content.addEventListener("change", (e) => {
+    const sel = e.target.closest("[data-sort]");
+    if (sel) { state.sort = sel.value; render(); }
   });
 
   /* ============ Global wiring ============ */
   $("#nav").addEventListener("click", (e) => { const n = e.target.closest(".nav-item"); if (n) go(n.dataset.view); });
   $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay" || e.target.closest("[data-close]")) closeModal(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  const isTyping = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT"); };
+  const modalOpen = () => $("#overlay").classList.contains("open");
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { closeModal(); return; }
+    // ⌘/Ctrl+K または / で検索にフォーカス
+    if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !isTyping() && !modalOpen())) {
+      e.preventDefault(); $("#globalSearch").focus(); $("#globalSearch").select(); return;
+    }
+    // n で新規案件（入力中・モーダル表示中は無効）
+    if (e.key.toLowerCase() === "n" && !isTyping() && !modalOpen() && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault(); caseForm();
+    }
+  });
+
+  // 保存失敗（容量超過など）をユーザーに通知
+  Store.setSaveErrorHandler((msg) => toast(msg));
 
   $("#globalSearch").addEventListener("input", (e) => {
     state.q = e.target.value;

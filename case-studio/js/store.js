@@ -29,9 +29,20 @@ const Store = (() => {
     return seed();
   }
 
+  let onError = null;
   function save() {
     db.updatedAt = Date.now();
-    localStorage.setItem(KEY, JSON.stringify(db));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(db));
+    } catch (e) {
+      // 容量超過などで保存できなかった場合は握りつぶさず通知する
+      console.error("save failed", e);
+      const quota = e && (e.name === "QuotaExceededError" || e.code === 22);
+      const msg = quota
+        ? "保存容量の上限に達しました。「書出」でバックアップし、古いデータを整理してください。"
+        : "データの保存に失敗しました。";
+      if (onError) onError(msg, e); else alert(msg);
+    }
   }
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -119,7 +130,9 @@ const Store = (() => {
   const feedbacks = {
     all: () => [...db.feedbacks].sort((a, b) => b.createdAt - a.createdAt),
     byCase: (cid) => feedbacks.all().filter((f) => f.caseId === cid),
+    get: (id) => db.feedbacks.find((f) => f.id === id),
     add(data) { const f = { id: uid(), createdAt: Date.now(), ...data }; db.feedbacks.push(f); save(); return f; },
+    update(id, data) { const f = feedbacks.get(id); if (f) { Object.assign(f, data); save(); } return f; },
     remove(id) { db.feedbacks = db.feedbacks.filter((f) => f.id !== id); save(); },
   };
 
@@ -161,9 +174,11 @@ const Store = (() => {
   }
   function reset() { db = seed(); save(); }
 
+  function setSaveErrorHandler(fn) { onError = fn; }
+
   return {
     STATUSES, PRIORITIES,
     cases, transcripts, feedbacks, milestones,
-    stats, activity, exportJSON, importJSON, reset,
+    stats, activity, exportJSON, importJSON, reset, setSaveErrorHandler,
   };
 })();
