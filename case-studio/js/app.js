@@ -43,6 +43,7 @@
   const titles = {
     dashboard: ["ダッシュボード", "全体の状況をひと目で"],
     cases: ["案件リスト", "進行中の案件を管理"],
+    board: ["ワークフロー", "ドラッグして進行状況を更新"],
     transcripts: ["文字起こし", "打ち合わせの記録"],
     feedback: ["フィードバック", "気づき・要望・課題"],
     detail: ["案件詳細", ""],
@@ -52,7 +53,7 @@
     const [t, s] = titles[state.view] || titles.dashboard;
     $("#pageTitle").childNodes[0].nodeValue = t;
     $("#pageSub").textContent = s;
-    const map = { dashboard: viewDashboard, cases: viewCases, transcripts: viewTranscripts, feedback: viewFeedback, detail: viewDetail };
+    const map = { dashboard: viewDashboard, cases: viewCases, board: viewBoard, transcripts: viewTranscripts, feedback: viewFeedback, detail: viewDetail };
     content.innerHTML = `<div class="view">${(map[state.view] || viewDashboard)()}</div>`;
     bindView();
   }
@@ -69,9 +70,18 @@
     const kpis = cards.map((k) => `
       <div class="kpi">
         <div class="ic" style="background:color-mix(in srgb,${k.c} 18%,transparent);color:${k.c}">${k.ico}</div>
-        <div class="val">${k.v}</div>
+        <div class="val" data-count="${k.v}">0</div>
         <div class="lbl">${k.l}</div>
       </div>`).join("");
+
+    const hero = `
+      <div class="hero">
+        <div class="hero-txt">
+          <h1>おかえりなさい 👋</h1>
+          <p>進行中の案件は <b>${st.active}件</b>。平均達成率は <b>${st.avgProgress}%</b> です。今日も一歩ずつ進めましょう。</p>
+        </div>
+        ${Art.hero()}
+      </div>`;
 
     const active = Store.cases.all().filter((c) => c.status !== "done").slice(0, 4);
     const activeHtml = active.length ? active.map(caseCard).join("") :
@@ -88,6 +98,7 @@
     }).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだ活動がありません</p>`;
 
     return `
+      ${hero}
       <div class="kpi-grid">${kpis}</div>
       <div class="two-col">
         <div>
@@ -170,6 +181,51 @@
     return [c.title, c.client, c.description, ...(c.tags || [])].some((x) => (x || "").toLowerCase().includes(q));
   }
 
+  /* ============ View: Board (Kanban workflow) ============ */
+  const STATUS_DOT = { lead: "var(--st-lead)", progress: "var(--st-progress)", review: "var(--st-review)", done: "var(--st-done)", hold: "var(--st-hold)" };
+
+  function viewBoard() {
+    let all = Store.cases.all();
+    if (state.q) all = all.filter((c) => matchCase(c, state.q));
+    const order = ["lead", "progress", "review", "done", "hold"];
+    const cols = order.map((status) => {
+      const s = Store.STATUSES[status];
+      const items = all.filter((c) => c.status === status);
+      const cards = items.length
+        ? items.map((c, i) => boardCard(c, i)).join("")
+        : `<div class="board-empty">ここにドラッグ</div>`;
+      return `
+        <div class="board-col" data-col="${status}">
+          <div class="board-col-head">
+            <span class="dot" style="background:${STATUS_DOT[status]}"></span>
+            <span class="ttl">${s.label}</span>
+            <span class="cnt">${items.length}</span>
+          </div>
+          <div class="board-list" data-list="${status}">${cards}</div>
+        </div>`;
+    }).join("");
+    return `
+      <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:16px;">${ic.play}カードを掴んで別の列へドラッグすると、案件のステータスが切り替わります。</p>
+      <div class="board-wrap"><div class="board">${cols}</div></div>`;
+  }
+
+  function boardCard(c, i) {
+    const tx = Store.transcripts.byCase(c.id).length;
+    const dl = daysLeft(c.dueDate);
+    const due = c.dueDate ? (dl < 0 ? `${-dl}日超過` : dl === 0 ? "本日" : `あと${dl}日`) : "";
+    return `
+      <div class="board-card" draggable="true" data-id="${c.id}" data-open="${c.id}" style="animation-delay:${i * 0.04}s">
+        ${priBadge(c.priority)}
+        <div class="bc-title" style="margin-top:${c.priority ? "8px" : "0"}">${esc(c.title)}</div>
+        <div class="bc-client">${esc(c.client || "—")}</div>
+        <div class="bc-bar"><i style="width:${c.progress || 0}%"></i></div>
+        <div class="bc-foot">
+          <span class="cc-meta">${ic.doc}${tx}</span>
+          ${due ? `<span class="cc-meta" style="margin-left:auto;">${ic.cal}${due}</span>` : ""}
+        </div>
+      </div>`;
+  }
+
   /* ============ View: Transcripts (global) ============ */
   function viewTranscripts() {
     let list = Store.transcripts.all();
@@ -248,8 +304,22 @@
           <button class="btn btn-sm btn-danger" data-del-case="${c.id}">${ic.trash}</button>
         </div>
       </div>
+      ${flowSteps(c)}
       <div class="tabs">${tabs}</div>
       <div>${body}</div>`;
+  }
+
+  function flowSteps(c) {
+    const order = ["lead", "progress", "review", "done"];
+    const cur = order.indexOf(c.status);
+    const parts = order.map((s, i) => {
+      const cls = c.status === s ? "active" : i < cur && cur >= 0 ? "passed" : "";
+      const inner = (i < cur && cur >= 0) ? ic.check : (i + 1);
+      const sep = i < order.length - 1 ? `<div class="flow-sep ${i < cur ? "passed" : ""}"></div>` : "";
+      return `<div class="flow-step ${cls}" data-set-status="${s}"><span class="num">${inner}</span>${Store.STATUSES[s].label}</div>${sep}`;
+    }).join("");
+    const hold = `<div class="flow-step ${c.status === "hold" ? "active" : ""}" data-set-status="hold" style="margin-left:8px;"><span class="num">⏸</span>保留</div>`;
+    return `<div class="flow">${parts}${hold}</div>`;
   }
 
   function detailOverview(c, tx, fb, ms) {
@@ -345,9 +415,11 @@
       ${timeline}`;
   }
 
+  const ART = { folder: Art.cases, doc: Art.transcripts, star: Art.feedback, check: Art.board, search: Art.search };
   function emptyState(icon, title, desc, btnLabel, action, arg = "") {
+    const art = (ART[icon] || Art.cases)();
     return `<div class="empty">
-      <div class="em-ic">${ic[icon] || ic.folder}</div>
+      ${art}
       <h3>${esc(title)}</h3><p>${esc(desc)}</p>
       <button class="btn btn-primary" data-empty-action="${action}" data-arg="${arg}">${ic.plus}${esc(btnLabel)}</button>
     </div>`;
@@ -468,6 +540,60 @@
         if (lbl) lbl.textContent = v + "%";
       };
     }
+    countUp();
+    initBoardDnD();
+    $$(".case-grid > .case-card").forEach((c, i) => {
+      c.classList.add("stagger");
+      c.style.animationDelay = (i * 0.05) + "s";
+    });
+  }
+
+  /* 数字カウントアップ */
+  function countUp() {
+    $$("[data-count]").forEach((el) => {
+      const target = +el.dataset.count || 0;
+      if (target === 0) { el.textContent = "0"; return; }
+      const dur = 850, start = performance.now();
+      const tick = (now) => {
+        const p = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased);
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  /* カンバンのドラッグ&ドロップ */
+  let dragId = null;
+  function initBoardDnD() {
+    const cards = $$(".board-card");
+    if (!cards.length) return;
+    cards.forEach((card) => {
+      card.addEventListener("dragstart", (e) => {
+        dragId = card.dataset.id;
+        card.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+      });
+      card.addEventListener("dragend", () => { card.classList.remove("dragging"); dragId = null; });
+    });
+    $$(".board-col").forEach((col) => {
+      col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("drag-over"); });
+      col.addEventListener("dragleave", (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove("drag-over"); });
+      col.addEventListener("drop", (e) => {
+        e.preventDefault();
+        col.classList.remove("drag-over");
+        const newStatus = col.dataset.col;
+        if (dragId) {
+          const c = Store.cases.get(dragId);
+          if (c && c.status !== newStatus) {
+            Store.cases.update(dragId, { status: newStatus });
+            toast(`「${c.title.slice(0, 14)}」を「${Store.STATUSES[newStatus].label}」へ`);
+            render();
+          }
+        }
+      });
+    });
   }
 
   content.addEventListener("click", (e) => {
@@ -482,6 +608,12 @@
     if ((t = el("[data-new-tx]"))) return txForm(t.dataset.newTx);
     if ((t = el("[data-new-fb]"))) return fbForm(t.dataset.newFb);
     if ((t = el("[data-new-ms]"))) return msForm(t.dataset.newMs);
+    if ((t = el("[data-set-status]"))) {
+      const ns = t.dataset.setStatus;
+      Store.cases.update(state.caseId, { status: ns });
+      toast(`ステータスを「${Store.STATUSES[ns].label}」に変更`);
+      return render();
+    }
     if ((t = el("[data-toggle-ms]"))) { Store.milestones.toggle(t.dataset.toggleMs); return render(); }
     if ((t = el("[data-del-case]"))) return confirmModal("案件を削除", "この案件と関連する文字起こし・FB・進捗もすべて削除されます。", () => { Store.cases.remove(t.dataset.delCase); toast("削除しました"); go("cases"); });
     if ((t = el("[data-del-tx]"))) return confirmModal("文字起こしを削除", "この記録を削除しますか？", () => { Store.transcripts.remove(t.dataset.delTx); toast("削除しました"); render(); });
@@ -504,7 +636,7 @@
 
   $("#globalSearch").addEventListener("input", (e) => {
     state.q = e.target.value;
-    if (["cases", "transcripts", "feedback"].includes(state.view)) render();
+    if (["cases", "board", "transcripts", "feedback"].includes(state.view)) render();
     else if (state.q) go("cases");
   });
 
