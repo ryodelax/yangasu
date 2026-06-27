@@ -21,7 +21,18 @@
 npx http-server case-studio -p 4173
 # → http://localhost:4173
 ```
-（単純な静的ファイルなので、index.html をブラウザで直接開いてもOK）
+
+## ⭐ 1ファイル完結版（おすすめ・どこでも動く）
+リポジトリ直下の **`case-studio.html`** は CSS・JS・挿絵をすべて埋め込んだ単体ファイルです。
+ダブルクリックするだけ、スマホに送るだけで動きます（`css/`・`js/` フォルダ不要）。
+
+> ⚠️ `case-studio/index.html` を単体でコピー／送信すると、`css/` と `js/` が一緒に運ばれず
+> **真っ白・巨大アイコンの崩れた表示**になります。配布・持ち運びには必ず `case-studio.html` を使ってください。
+
+単体版はソース（`css/`・`js/`）を編集したあと、次のコマンドで再生成します:
+```bash
+node case-studio/build.js   # → case-studio.html を更新
+```
 
 ## GitHub Pages で公開する
 1. このリポジトリを GitHub に push

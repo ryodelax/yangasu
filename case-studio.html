@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Studio — 案件・打ち合わせ管理</title>
+  <meta name="description" content="案件リストと打ち合わせの文字起こし、フィードバック・進捗管理を一元化するアプリ" />
+  <style>
+/* ============================================================
+   Case Studio — 案件・打ち合わせ管理アプリ
+   テーマ: ダーク基調 + ライト切替 / グラスモーフィズム
+   ============================================================ */
+
+:root {
+  /* Brand */
+  --accent: #6c5ce7;
+  --accent-2: #00cec9;
+  --accent-grad: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 50%, #00cec9 100%);
+
+  /* Dark theme (default) */
+  --bg: #0e0f1a;
+  --bg-2: #151728;
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-strong: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f4f5fb;
+  --text-muted: #a3a7bd;
+  --text-faint: #6c7088;
+  --shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+
+  /* Status colors */
+  --st-lead: #74b9ff;
+  --st-progress: #ffeaa7;
+  --st-review: #fab1a0;
+  --st-done: #55efc4;
+  --st-hold: #b2bec3;
+
+  --pri-high: #ff7675;
+  --pri-mid: #ffeaa7;
+  --pri-low: #81ecec;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --maxw: 1240px;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
+}
+
+[data-theme="light"] {
+  --bg: #f4f5fa;
+  --bg-2: #eceefb;
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-strong: #ffffff;
+  --surface-hover: #ffffff;
+  --border: rgba(20, 23, 50, 0.09);
+  --border-strong: rgba(20, 23, 50, 0.16);
+  --text: #1c1f3a;
+  --text-muted: #5a5f7d;
+  --text-faint: #9094ad;
+  --shadow: 0 16px 40px -16px rgba(60, 60, 110, 0.28);
+
+  /* ライトモードで視認できる濃いめのステータス/優先度色 */
+  --st-lead: #2f80ed;
+  --st-progress: #c98a00;
+  --st-review: #de5d2d;
+  --st-done: #0a9d6e;
+  --st-hold: #6b7280;
+  --pri-high: #e0463f;
+  --pri-mid: #c98a00;
+  --pri-low: #0d9aa0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* インラインSVGアイコンの既定サイズ（個別ルールで上書き可） */
+svg { width: 1.05em; height: 1.05em; flex: none; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 動くグラデーション・ブロブ背景 */
+.bg-fx { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.bg-fx span {
+  position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5;
+  animation: float 22s ease-in-out infinite;
+}
+.bg-fx .b1 { width: 460px; height: 460px; left: -120px; top: -140px; background: radial-gradient(circle, #6c5ce7, transparent 70%); }
+.bg-fx .b2 { width: 420px; height: 420px; right: -120px; top: -80px; background: radial-gradient(circle, #00cec9, transparent 70%); animation-delay: -7s; opacity: .38; }
+.bg-fx .b3 { width: 380px; height: 380px; left: 40%; bottom: -180px; background: radial-gradient(circle, #a29bfe, transparent 70%); animation-delay: -13s; opacity: .32; }
+[data-theme="light"] .bg-fx span { opacity: .32; }
+[data-theme="light"] .bg-fx .b2 { opacity: .26; }
+.app { position: relative; z-index: 1; }
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, 30px) scale(1.08); }
+  66% { transform: translate(-30px, 20px) scale(.95); }
+}
+
+::selection { background: rgba(108, 92, 231, 0.4); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================ Layout ============================ */
+.app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+
+.sidebar {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  padding: 22px 16px;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  gap: 6px;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; padding: 6px 10px 22px; }
+.brand .logo {
+  width: 38px; height: 38px; border-radius: 11px;
+  background: var(--accent-grad);
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 18px; color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(108, 92, 231, 0.6);
+}
+.brand .name { font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+.brand .name span { display: block; font-size: 11px; font-weight: 500; color: var(--text-faint); }
+
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer;
+  font-size: 14.5px; font-weight: 600;
+  border: 1px solid transparent;
+  transition: .16s;
+  user-select: none;
+}
+.nav-item svg { width: 19px; height: 19px; flex: none; }
+.nav-item:hover { background: var(--surface); color: var(--text); }
+.nav-item.active {
+  background: var(--surface-strong);
+  color: var(--text);
+  border-color: var(--border);
+}
+.nav-item.active::before {
+  content: ""; position: absolute; left: 8px; width: 3px; height: 20px;
+  border-radius: 4px; background: var(--accent-grad);
+}
+.nav-item { position: relative; }
+
+.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.theme-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-muted);
+}
+.theme-toggle:hover { color: var(--text); }
+.io-btns { display: flex; gap: 8px; }
+.io-btns .btn { flex: 1; justify-content: center; font-size: 12.5px; padding: 9px; }
+
+/* ============================ Main ============================ */
+.main { min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 28px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.page-title { font-size: 21px; font-weight: 700; }
+.page-title small { display: block; font-size: 12.5px; font-weight: 500; color: var(--text-faint); margin-top: 2px; }
+
+.search {
+  margin-left: auto; position: relative; width: min(360px, 40vw);
+}
+.search input {
+  width: 100%; padding: 11px 14px 11px 40px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); font-size: 14px; font-family: var(--font);
+  transition: .16s;
+}
+.search input:focus { outline: none; border-color: var(--accent); background: var(--surface-strong); }
+.search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: var(--text-faint); }
+
+.content { padding: 28px; max-width: var(--maxw); width: 100%; margin: 0 auto; }
+
+/* ============================ Buttons ============================ */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 11px;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text); font-size: 14px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; transition: .16s; white-space: nowrap;
+}
+.btn svg { width: 17px; height: 17px; }
+.btn:hover { background: var(--surface-hover); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary {
+  background: var(--accent-grad); border-color: transparent; color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(108, 92, 231, 0.7);
+}
+.btn-primary:hover { filter: brightness(1.07); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--surface); color: var(--text); }
+.btn-danger { color: var(--pri-high); border-color: transparent; background: transparent; }
+.btn-danger:hover { background: rgba(255, 118, 117, 0.12); }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+
+/* ============================ Cards / KPI ============================ */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.kpi {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden;
+  transition: .18s;
+}
+.kpi:hover { transform: translateY(-3px); border-color: var(--border-strong); box-shadow: var(--shadow); }
+.kpi .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 14px; }
+.kpi .ic svg { width: 21px; height: 21px; }
+.kpi .val { font-size: 30px; font-weight: 800; letter-spacing: -.5px; }
+.kpi .lbl { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+.kpi .spark { font-size: 12px; color: var(--text-faint); margin-top: 8px; }
+
+.section-head { display: flex; align-items: center; gap: 12px; margin: 6px 0 16px; }
+.section-head h2 { font-size: 17px; font-weight: 700; }
+.section-head .count { font-size: 12.5px; color: var(--text-faint); font-weight: 600; }
+.section-head .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.two-col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; align-items: start; }
+
+/* Case grid */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  cursor: pointer; transition: .15s;
+}
+.chip:hover { color: var(--text); border-color: var(--border-strong); }
+.chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+.case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.case-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; cursor: pointer;
+  transition: .18s; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.case-card::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent-grad); opacity: .85;
+}
+.case-card:hover { transform: translateY(-4px); border-color: var(--border-strong); box-shadow: var(--shadow); }
+.case-card .cc-top { display: flex; align-items: flex-start; gap: 10px; }
+.case-card .cc-title { font-size: 16px; font-weight: 700; line-height: 1.35; }
+.case-card .cc-client { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+.case-card .cc-desc { font-size: 13px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.case-card .cc-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; flex-wrap: wrap; }
+.case-card .cc-meta { font-size: 11.5px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; }
+.case-card .cc-meta svg { width: 14px; height: 14px; }
+
+/* Progress bar */
+.progress { height: 7px; border-radius: 20px; background: var(--surface-strong); overflow: hidden; }
+.progress > i { display: block; height: 100%; border-radius: 20px; background: var(--accent-grad); transition: width .4s; }
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+}
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.lead { color: var(--st-lead); background: color-mix(in srgb, var(--st-lead) 16%, transparent); }
+.badge.progress { color: var(--st-progress); background: color-mix(in srgb, var(--st-progress) 18%, transparent); }
+.badge.review { color: var(--st-review); background: color-mix(in srgb, var(--st-review) 18%, transparent); }
+.badge.done { color: var(--st-done); background: color-mix(in srgb, var(--st-done) 16%, transparent); }
+.badge.hold { color: var(--st-hold); background: color-mix(in srgb, var(--st-hold) 18%, transparent); }
+
+.pri { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.pri.high { color: var(--pri-high); background: color-mix(in srgb, var(--pri-high) 16%, transparent); }
+.pri.mid { color: var(--pri-mid); background: color-mix(in srgb, var(--pri-mid) 18%, transparent); }
+.pri.low { color: var(--pri-low); background: color-mix(in srgb, var(--pri-low) 16%, transparent); }
+
+.tag { font-size: 11px; padding: 3px 9px; border-radius: 6px; background: var(--surface-strong); color: var(--text-muted); font-weight: 600; }
+
+/* ============================ Empty state ============================ */
+.empty { text-align: center; padding: 48px 20px 64px; color: var(--text-muted); }
+.empty .art { width: 220px; max-width: 70%; height: auto; margin: 0 auto 8px; display: block; color: var(--text-faint); animation: floatY 5s ease-in-out infinite; }
+.empty h3 { font-size: 18px; color: var(--text); margin-bottom: 6px; }
+.empty p { font-size: 14px; max-width: 380px; margin: 0 auto 20px; }
+@keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+
+/* SVG挿絵 共通（グローバルな svg{height:1.05em} を上書き） */
+.art { color: var(--text-faint); height: auto; }
+
+/* ============================ Detail view ============================ */
+.detail-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+.detail-head .dh-main { min-width: 0; flex: 1; }
+.back-btn { margin-bottom: 14px; }
+.detail-title { font-size: 26px; font-weight: 800; letter-spacing: -.4px; }
+.detail-sub { color: var(--text-muted); font-size: 14px; margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.detail-sub .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text-faint); }
+.detail-sub svg { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+.tab {
+  padding: 11px 16px; font-size: 14px; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; border-bottom: 2px solid transparent; transition: .15s; position: relative; top: 1px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab .n { font-size: 11px; background: var(--surface-strong); padding: 1px 7px; border-radius: 10px; margin-left: 6px; color: var(--text-faint); }
+
+/* Timeline / list items */
+.item {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 12px; transition: .15s;
+}
+.item:hover { border-color: var(--border-strong); }
+.item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.item-head .it-title { font-weight: 700; font-size: 14.5px; }
+.item-head .it-date { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+.item-body { font-size: 13.5px; color: var(--text-muted); white-space: pre-wrap; line-height: 1.7; }
+.item-body.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.item-actions { display: flex; gap: 6px; margin-left: auto; }
+.link-more { font-size: 12.5px; color: var(--accent-2); cursor: pointer; font-weight: 600; margin-top: 8px; display: inline-block; }
+
+.fb-item { border-left: 3px solid var(--accent); }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-grad); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; flex: none; }
+
+/* Milestones */
+.milestone { display: flex; gap: 14px; padding: 4px 0; }
+.milestone .ms-mark { display: flex; flex-direction: column; align-items: center; }
+.milestone .ms-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); display: grid; place-items: center; flex: none; background: var(--bg-2); }
+.milestone .ms-dot svg { width: 13px; height: 13px; }
+.milestone.done .ms-dot { background: var(--st-done); border-color: var(--st-done); color: #06281c; }
+.milestone .ms-line { width: 2px; flex: 1; background: var(--border); margin: 4px 0; }
+.milestone:last-child .ms-line { display: none; }
+.milestone .ms-body { padding-bottom: 18px; flex: 1; }
+.milestone .ms-title { font-weight: 600; font-size: 14px; cursor: pointer; }
+.milestone.done .ms-title { color: var(--text-muted); text-decoration: line-through; }
+.milestone .ms-date { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+
+/* ============================ Modal ============================ */
+.overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(8, 9, 18, 0.6); backdrop-filter: blur(4px);
+  display: grid; place-items: center; padding: 24px;
+  opacity: 0; pointer-events: none; transition: .2s;
+}
+.overlay.open { opacity: 1; pointer-events: auto; }
+.modal {
+  width: min(620px, 100%); max-height: 88vh; overflow-y: auto;
+  background: var(--bg-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  transform: translateY(12px) scale(.98); transition: .2s;
+}
+.overlay.open .modal { transform: none; }
+.modal-head { display: flex; align-items: center; padding: 22px 24px 6px; }
+.modal-head h3 { font-size: 19px; font-weight: 700; }
+.modal-head .x { margin-left: auto; cursor: pointer; color: var(--text-faint); padding: 6px; border-radius: 8px; display: grid; place-items: center; }
+.modal-head .x:hover { background: var(--surface); color: var(--text); }
+.modal-body { padding: 16px 24px 24px; }
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 0 24px 24px; }
+
+/* Forms */
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; }
+.field input, .field textarea, .field select {
+  width: 100%; padding: 11px 13px; font-size: 14px; font-family: var(--font);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); transition: .15s; resize: vertical;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: none; border-color: var(--accent); background: var(--surface-strong);
+}
+.field textarea { min-height: 100px; line-height: 1.7; }
+.field textarea.big { min-height: 220px; }
+.field .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.hint { font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+
+/* Toast */
+.toast-wrap { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.toast {
+  background: var(--bg-2); border: 1px solid var(--border-strong); color: var(--text);
+  padding: 12px 18px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
+  box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px;
+  animation: toastIn .3s ease;
+}
+.toast svg { width: 17px; height: 17px; color: var(--st-done); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } }
+
+/* Activity feed */
+.feed-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.feed-item:last-child { border: none; }
+.feed-ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--surface-strong); }
+.feed-ic svg { width: 16px; height: 16px; color: var(--text-muted); }
+.feed-txt { font-size: 13.5px; }
+.feed-txt b { font-weight: 700; }
+.feed-time { font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
+
+.view { animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+
+/* Mobile */
+.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; z-index: 90; width: 248px;
+    transform: translateX(-100%); transition: .25s;
+  }
+  .sidebar.open { transform: none; box-shadow: var(--shadow); }
+  .menu-btn { display: grid; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .search { width: auto; flex: 1; }
+  .content { padding: 18px; }
+}
+@media (max-width: 540px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row, .field .row { grid-template-columns: 1fr; }
+  .board { grid-auto-columns: 80%; }
+}
+
+/* ============================ 入場アニメーション ============================ */
+@keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+.stagger { opacity: 0; animation: pop .5s cubic-bezier(.21,.9,.3,1) forwards; }
+
+.kpi { opacity: 0; animation: pop .5s cubic-bezier(.21,.9,.3,1) forwards; }
+.kpi:nth-child(1) { animation-delay: .04s; }
+.kpi:nth-child(2) { animation-delay: .10s; }
+.kpi:nth-child(3) { animation-delay: .16s; }
+.kpi:nth-child(4) { animation-delay: .22s; }
+.kpi .ic { transition: transform .25s; }
+.kpi:hover .ic { transform: scale(1.12) rotate(-6deg); }
+
+/* progress bar に光沢の流れ */
+.progress > i { position: relative; overflow: hidden; }
+.progress > i::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  transform: translateX(-100%); animation: shimmer 2.4s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
+
+/* ============================ ダッシュボード ヒーロー ============================ */
+.hero {
+  display: flex; align-items: center; gap: 22px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 22px 26px; margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.hero::before { content: ""; position: absolute; inset: 0; background: var(--accent-grad); opacity: .06; }
+.hero .hero-txt { flex: 1; min-width: 0; position: relative; }
+.hero .hero-txt h1 { font-size: 23px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 6px; }
+.hero .hero-txt p { font-size: 14px; color: var(--text-muted); max-width: 440px; }
+.hero .art { width: 240px; flex: none; }
+@media (max-width: 720px) { .hero .art { display: none; } }
+
+/* ============================ Kanban ワークフロー ============================ */
+.board-wrap { overflow-x: auto; padding-bottom: 12px; margin: 0 -4px; }
+.board {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr);
+  gap: 16px; min-height: 60vh; padding: 0 4px;
+}
+.board-col {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column;
+  transition: .18s; min-width: 0;
+}
+.board-col.drag-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); transform: translateY(-2px); }
+.board-col-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 0 4px; }
+.board-col-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.board-col-head .ttl { font-weight: 700; font-size: 13.5px; }
+.board-col-head .cnt { margin-left: auto; font-size: 12px; color: var(--text-faint); background: var(--surface-strong); padding: 2px 9px; border-radius: 20px; font-weight: 700; }
+.board-list { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 40px; }
+.board-card {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 13px 14px; cursor: grab; transition: .15s; position: relative;
+  animation: pop .4s cubic-bezier(.21,.9,.3,1) backwards;
+}
+.board-card:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: var(--shadow); }
+.board-card:active { cursor: grabbing; }
+.board-card.dragging { opacity: .4; transform: rotate(2deg) scale(1.02); }
+.board-card .bc-title { font-weight: 700; font-size: 13.5px; line-height: 1.4; margin-bottom: 4px; }
+.board-card .bc-client { font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; }
+.board-card .bc-foot { display: flex; align-items: center; gap: 8px; }
+.board-card .bc-foot .cc-meta { font-size: 11px; color: var(--text-faint); display: inline-flex; align-items: center; gap: 4px; }
+.board-card .bc-bar { height: 5px; border-radius: 20px; background: var(--surface-strong); overflow: hidden; margin-bottom: 10px; }
+.board-card .bc-bar > i { display: block; height: 100%; background: var(--accent-grad); }
+.board-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 18px 8px; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+
+/* ============================ ステータス・ステッパー ============================ */
+.flow { display: flex; align-items: center; gap: 0; margin: 4px 0 24px; flex-wrap: wrap; }
+.flow-step {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  color: var(--text-faint); transition: .15s; white-space: nowrap;
+}
+.flow-step .num { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); display: grid; place-items: center; font-size: 11px; flex: none; transition: .15s; }
+.flow-step .num svg { width: 13px; height: 13px; }
+.flow-step:hover { color: var(--text); background: var(--surface); }
+.flow-step.active { color: var(--text); }
+.flow-step.active .num { background: var(--accent-grad); border-color: transparent; color: #fff; }
+.flow-step.passed .num { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: var(--text); }
+.flow-sep { width: 26px; height: 2px; background: var(--border); flex: none; }
+.flow-sep.passed { background: var(--accent); }
+@media (max-width: 720px) { .flow-sep { width: 14px; } .flow-step { padding: 7px 10px; font-size: 12px; } }
+
+/* ============================ 動きの軽減 ============================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; }
+  .bg-fx { display: none; }
+}
+
+</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236c5ce7'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3ECS%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="bg-fx"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+  <div class="app">
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo">CS</div>
+        <div class="name">Case Studio<span>案件 & 打ち合わせ管理</span></div>
+      </div>
+      <nav class="nav" id="nav">
+        <div class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          ダッシュボード
+        </div>
+        <div class="nav-item" data-view="cases">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          案件リスト
+        </div>
+        <div class="nav-item" data-view="board">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="14" rx="1"/></svg>
+          ワークフロー
+        </div>
+        <div class="nav-item" data-view="transcripts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3z"/><path d="M8 9h8M8 12h5"/></svg>
+          文字起こし
+        </div>
+        <div class="nav-item" data-view="feedback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.8 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg>
+          フィードバック
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="theme-toggle" id="themeToggle">
+          <span>テーマ</span>
+          <span id="themeLabel">🌙 ダーク</span>
+        </div>
+        <div class="io-btns">
+          <button class="btn btn-sm" id="exportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+            書出
+          </button>
+          <button class="btn btn-sm" id="importBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>
+            読込
+          </button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ Main ============ -->
+    <main class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost menu-btn" id="menuBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="page-title" id="pageTitle">ダッシュボード<small id="pageSub">全体の状況をひと目で</small></div>
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input type="text" id="globalSearch" placeholder="案件・文字起こしを検索…" />
+        </div>
+      </header>
+      <div class="content" id="content"><!-- views injected here --></div>
+    </main>
+  </div>
+
+  <!-- ============ Modal ============ -->
+  <div class="overlay" id="overlay">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+  <script>
+/* ============================================================
+   store.js — データ層 (localStorage)
+   後でSupabase等のAPIに差し替えやすいよう、ここに永続化を集約。
+   ============================================================ */
+
+const Store = (() => {
+  const KEY = "case-studio-v1";
+
+  const STATUSES = {
+    lead:     { label: "リード",   cls: "lead" },
+    progress: { label: "進行中",   cls: "progress" },
+    review:   { label: "レビュー", cls: "review" },
+    done:     { label: "完了",     cls: "done" },
+    hold:     { label: "保留",     cls: "hold" },
+  };
+  const PRIORITIES = {
+    high: { label: "高", cls: "high" },
+    mid:  { label: "中", cls: "mid" },
+    low:  { label: "低", cls: "low" },
+  };
+
+  let db = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { console.warn("load failed", e); }
+    return seed();
+  }
+
+  function save() {
+    db.updatedAt = Date.now();
+    localStorage.setItem(KEY, JSON.stringify(db));
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  /* ---------- サンプルデータ (初回のみ) ---------- */
+  function seed() {
+    const now = Date.now();
+    const day = 86400000;
+    const c1 = "c_demo1", c2 = "c_demo2";
+    return {
+      version: 1,
+      updatedAt: now,
+      cases: [
+        {
+          id: c1, title: "ブリッジ社 CFダッシュボード改修", client: "株式会社ブリッジ",
+          status: "progress", priority: "high", progress: 60,
+          tags: ["経理", "GAS", "Looker"],
+          description: "キャッシュフロー表の自動反映ロジックを刷新。手数料入金の消し込みルールを見直し、Looker連携の再認可も対応する。",
+          createdAt: now - day * 12, dueDate: new Date(now + day * 9).toISOString().slice(0, 10),
+        },
+        {
+          id: c2, title: "コンテンツ壁打ちBot 改善", client: "社内プロジェクト",
+          status: "review", priority: "mid", progress: 80,
+          tags: ["Slack", "GAS", "AI"],
+          description: "Slackコマンド追加後の再インストール運用を整備。3秒制約を非同期トリガーで回避する構成に。",
+          createdAt: now - day * 30, dueDate: new Date(now + day * 3).toISOString().slice(0, 10),
+        },
+      ],
+      transcripts: [
+        {
+          id: uid(), caseId: c1, title: "キックオフMTG", date: new Date(now - day * 11).toISOString().slice(0, 10),
+          content: "・現行CF表の課題を共有\n・手数料入金の消し込みが手動で月20時間かかっている\n・LookerのID再認可が必要との指摘\n・次回までにソース一覧を整理する",
+          createdAt: now - day * 11,
+        },
+        {
+          id: uid(), caseId: c2, title: "運用フロー確認", date: new Date(now - day * 5).toISOString().slice(0, 10),
+          content: "・コマンド追加後は必ず再インストールが必要だと判明\n・3秒応答制約に引っかかるケースを非同期トリガーで回避\n・デプロイIDの管理方法を決める",
+          createdAt: now - day * 5,
+        },
+      ],
+      feedbacks: [
+        { id: uid(), caseId: c1, author: "長谷川", type: "request", content: "消し込みルールはドキュメント化して仕様書に残しておきたい。", createdAt: now - day * 3 },
+        { id: uid(), caseId: c2, author: "レビュアー", type: "good", content: "非同期トリガーの設計、運用が安定していて良い。", createdAt: now - day * 1 },
+      ],
+      milestones: [
+        { id: uid(), caseId: c1, title: "ソース一覧の整理", date: new Date(now - day * 8).toISOString().slice(0, 10), done: true },
+        { id: uid(), caseId: c1, title: "消し込みロジック実装", date: new Date(now + day * 2).toISOString().slice(0, 10), done: false },
+        { id: uid(), caseId: c1, title: "Looker再認可・検証", date: new Date(now + day * 9).toISOString().slice(0, 10), done: false },
+        { id: uid(), caseId: c2, title: "再インストール手順の文書化", date: new Date(now - day * 2).toISOString().slice(0, 10), done: true },
+      ],
+    };
+  }
+
+  /* ---------- Cases ---------- */
+  const cases = {
+    all: () => [...db.cases].sort((a, b) => b.createdAt - a.createdAt),
+    get: (id) => db.cases.find((c) => c.id === id),
+    add(data) {
+      const c = { id: uid(), createdAt: Date.now(), progress: 0, tags: [], ...data };
+      db.cases.push(c); save(); return c;
+    },
+    update(id, data) {
+      const c = cases.get(id); if (!c) return; Object.assign(c, data); save(); return c;
+    },
+    remove(id) {
+      db.cases = db.cases.filter((c) => c.id !== id);
+      db.transcripts = db.transcripts.filter((t) => t.caseId !== id);
+      db.feedbacks = db.feedbacks.filter((f) => f.caseId !== id);
+      db.milestones = db.milestones.filter((m) => m.caseId !== id);
+      save();
+    },
+  };
+
+  /* ---------- Transcripts ---------- */
+  const transcripts = {
+    all: () => [...db.transcripts].sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+    byCase: (cid) => transcripts.all().filter((t) => t.caseId === cid),
+    get: (id) => db.transcripts.find((t) => t.id === id),
+    add(data) { const t = { id: uid(), createdAt: Date.now(), ...data }; db.transcripts.push(t); save(); return t; },
+    update(id, data) { const t = transcripts.get(id); if (t) { Object.assign(t, data); save(); } return t; },
+    remove(id) { db.transcripts = db.transcripts.filter((t) => t.id !== id); save(); },
+  };
+
+  /* ---------- Feedback ---------- */
+  const feedbacks = {
+    all: () => [...db.feedbacks].sort((a, b) => b.createdAt - a.createdAt),
+    byCase: (cid) => feedbacks.all().filter((f) => f.caseId === cid),
+    add(data) { const f = { id: uid(), createdAt: Date.now(), ...data }; db.feedbacks.push(f); save(); return f; },
+    remove(id) { db.feedbacks = db.feedbacks.filter((f) => f.id !== id); save(); },
+  };
+
+  /* ---------- Milestones ---------- */
+  const milestones = {
+    byCase: (cid) => db.milestones.filter((m) => m.caseId === cid).sort((a, b) => (a.date || "").localeCompare(b.date || "")),
+    add(data) { const m = { id: uid(), done: false, ...data }; db.milestones.push(m); save(); return m; },
+    toggle(id) { const m = db.milestones.find((x) => x.id === id); if (m) { m.done = !m.done; save(); } return m; },
+    remove(id) { db.milestones = db.milestones.filter((m) => m.id !== id); save(); },
+  };
+
+  /* ---------- Stats / Activity ---------- */
+  function stats() {
+    const cs = db.cases;
+    return {
+      total: cs.length,
+      active: cs.filter((c) => c.status === "progress" || c.status === "review").length,
+      done: cs.filter((c) => c.status === "done").length,
+      transcripts: db.transcripts.length,
+      avgProgress: cs.length ? Math.round(cs.reduce((s, c) => s + (c.progress || 0), 0) / cs.length) : 0,
+    };
+  }
+
+  function activity(limit = 8) {
+    const ev = [];
+    db.transcripts.forEach((t) => ev.push({ type: "transcript", t: t.createdAt, caseId: t.caseId, label: t.title }));
+    db.feedbacks.forEach((f) => ev.push({ type: "feedback", t: f.createdAt, caseId: f.caseId, label: f.content }));
+    db.cases.forEach((c) => ev.push({ type: "case", t: c.createdAt, caseId: c.id, label: c.title }));
+    return ev.sort((a, b) => b.t - a.t).slice(0, limit);
+  }
+
+  /* ---------- Import / Export ---------- */
+  function exportJSON() { return JSON.stringify(db, null, 2); }
+  function importJSON(str) {
+    const parsed = JSON.parse(str);
+    if (!parsed.cases) throw new Error("不正なデータ形式です");
+    db = { version: 1, updatedAt: Date.now(), cases: [], transcripts: [], feedbacks: [], milestones: [], ...parsed };
+    save();
+  }
+  function reset() { db = seed(); save(); }
+
+  return {
+    STATUSES, PRIORITIES,
+    cases, transcripts, feedbacks, milestones,
+    stats, activity, exportJSON, importJSON, reset,
+  };
+})();
+
+  </script>
+  <script>
+/* ============================================================
+   art.js — オリジナルSVG挿絵（フラットイラスト）
+   ブランドグラデーション基調。ライト/ダーク両対応。
+   currentColor を使い、線は半透明でテーマに馴染ませる。
+   ============================================================ */
+
+const Art = (() => {
+  // 共通グラデーション定義（id衝突を避けるため呼び出しごとにユニーク化）
+  let n = 0;
+  function defs(id) {
+    return `
+      <defs>
+        <linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#6c5ce7"/>
+          <stop offset=".55" stop-color="#a29bfe"/>
+          <stop offset="1" stop-color="#00cec9"/>
+        </linearGradient>
+        <linearGradient id="g${id}b" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#00cec9"/>
+          <stop offset="1" stop-color="#6c5ce7"/>
+        </linearGradient>
+      </defs>`;
+  }
+  const wrap = (vb, inner) => {
+    const id = ++n;
+    return `<svg class="art" viewBox="${vb}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">${defs(id)}${inner(id)}</svg>`;
+  };
+
+  // 半透明の下地・線（currentColorでテーマ追従）
+  const SOFT = 'rgba(127,127,160,.16)';
+  const LINE = 'currentColor';
+
+  /* 案件・プロジェクト（積み重なったカード＋星） */
+  function cases() {
+    return wrap("0 0 240 180", (id) => `
+      <ellipse cx="120" cy="158" rx="92" ry="12" fill="${SOFT}"/>
+      <rect x="48" y="44" width="120" height="86" rx="14" fill="${SOFT}"/>
+      <rect x="60" y="32" width="120" height="86" rx="14" fill="url(#g${id})"/>
+      <rect x="74" y="50" width="92" height="10" rx="5" fill="#fff" opacity=".9"/>
+      <rect x="74" y="68" width="64" height="8" rx="4" fill="#fff" opacity=".6"/>
+      <rect x="74" y="84" width="78" height="8" rx="4" fill="#fff" opacity=".4"/>
+      <circle cx="178" cy="112" r="20" fill="url(#g${id}b)" stroke="rgba(255,255,255,.5)" stroke-width="3"/>
+      <path d="M178 104v16M170 112h16" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="44" cy="40" r="5" fill="#00cec9" opacity=".8"/>
+      <circle cx="196" cy="56" r="4" fill="#6c5ce7" opacity=".7"/>
+    `);
+  }
+
+  /* 文字起こし（書類＋音声波形＋吹き出し） */
+  function transcripts() {
+    return wrap("0 0 240 180", (id) => `
+      <ellipse cx="120" cy="158" rx="88" ry="12" fill="${SOFT}"/>
+      <rect x="58" y="30" width="104" height="120" rx="12" fill="${SOFT}"/>
+      <rect x="68" y="24" width="104" height="120" rx="12" fill="var(--surface-strong)" stroke="${LINE}" stroke-opacity=".18" stroke-width="2"/>
+      <rect x="84" y="48" width="72" height="7" rx="3.5" fill="${LINE}" opacity=".35"/>
+      <rect x="84" y="64" width="56" height="7" rx="3.5" fill="${LINE}" opacity=".22"/>
+      <rect x="84" y="80" width="64" height="7" rx="3.5" fill="${LINE}" opacity=".22"/>
+      <g stroke="url(#g${id})" stroke-width="5" stroke-linecap="round">
+        <path d="M92 112v10"/><path d="M104 104v26"/><path d="M116 96v42"/>
+        <path d="M128 108v18"/><path d="M140 100v34"/><path d="M152 110v14"/>
+      </g>
+      <circle cx="178" cy="44" r="22" fill="url(#g${id}b)"/>
+      <path d="M170 40h16M170 48h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <path d="M164 60l-4 10 12-6z" fill="url(#g${id}b)"/>
+    `);
+  }
+
+  /* フィードバック（吹き出し＋星評価） */
+  function feedback() {
+    return wrap("0 0 240 180", (id) => `
+      <ellipse cx="120" cy="158" rx="86" ry="12" fill="${SOFT}"/>
+      <path d="M52 44h120a16 16 0 0 1 16 16v44a16 16 0 0 1-16 16H96l-22 20v-20H52a16 16 0 0 1-16-16V60a16 16 0 0 1 16-16z" fill="url(#g${id})"/>
+      <g fill="#fff">
+        <path d="M84 70l4.5 9.2 10.2 1.5-7.3 7.2 1.7 10.1L84 103l-9.1 4.8 1.7-10.1-7.3-7.2 10.2-1.5z" opacity=".95"/>
+      </g>
+      <rect x="108" y="74" width="58" height="8" rx="4" fill="#fff" opacity=".75"/>
+      <rect x="108" y="90" width="40" height="8" rx="4" fill="#fff" opacity=".5"/>
+      <circle cx="196" cy="120" r="16" fill="var(--surface-strong)" stroke="${LINE}" stroke-opacity=".18" stroke-width="2"/>
+      <path d="M190 120l4 4 8-9" stroke="#00cec9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    `);
+  }
+
+  /* ワークフロー（カンバン3列） */
+  function board() {
+    return wrap("0 0 260 180", (id) => `
+      <ellipse cx="130" cy="160" rx="104" ry="12" fill="${SOFT}"/>
+      <g>
+        <rect x="34" y="30" width="58" height="118" rx="12" fill="${SOFT}"/>
+        <rect x="42" y="44" width="42" height="26" rx="7" fill="url(#g${id})"/>
+        <rect x="42" y="76" width="42" height="26" rx="7" fill="var(--surface-strong)" stroke="${LINE}" stroke-opacity=".18" stroke-width="2"/>
+      </g>
+      <g>
+        <rect x="101" y="30" width="58" height="118" rx="12" fill="${SOFT}"/>
+        <rect x="109" y="44" width="42" height="26" rx="7" fill="url(#g${id}b)"/>
+        <rect x="109" y="76" width="42" height="26" rx="7" fill="url(#g${id})"/>
+      </g>
+      <g>
+        <rect x="168" y="30" width="58" height="118" rx="12" fill="${SOFT}"/>
+        <rect x="176" y="44" width="42" height="26" rx="7" fill="var(--surface-strong)" stroke="${LINE}" stroke-opacity=".18" stroke-width="2"/>
+      </g>
+      <path d="M86 57h26" stroke="url(#g${id}b)" stroke-width="3" stroke-dasharray="3 4" stroke-linecap="round"/>
+      <path d="M153 89h24" stroke="url(#g${id}b)" stroke-width="3" stroke-dasharray="3 4" stroke-linecap="round"/>
+      <circle cx="130" cy="57" r="4" fill="#00cec9"/>
+      <circle cx="197" cy="89" r="4" fill="#6c5ce7"/>
+    `);
+  }
+
+  /* 検索なし */
+  function search() {
+    return wrap("0 0 240 180", (id) => `
+      <ellipse cx="120" cy="158" rx="80" ry="12" fill="${SOFT}"/>
+      <circle cx="108" cy="84" r="48" fill="${SOFT}"/>
+      <circle cx="108" cy="84" r="38" fill="none" stroke="url(#g${id})" stroke-width="8"/>
+      <path d="M138 114l28 28" stroke="url(#g${id})" stroke-width="10" stroke-linecap="round"/>
+      <path d="M92 84h32M108 68v32" stroke="${LINE}" stroke-opacity=".3" stroke-width="4" stroke-linecap="round"/>
+    `);
+  }
+
+  /* ダッシュボードのヒーロー（成長グラフ＋人） */
+  function hero() {
+    return wrap("0 0 320 180", (id) => `
+      <rect x="20" y="24" width="200" height="132" rx="16" fill="var(--surface-strong)" stroke="${LINE}" stroke-opacity=".14" stroke-width="2"/>
+      <path d="M40 120 L78 96 L110 108 L150 64 L196 40" fill="none" stroke="url(#g${id})" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M40 120 L78 96 L110 108 L150 64 L196 40 V140 H40 Z" fill="url(#g${id})" opacity=".12"/>
+      <g fill="url(#g${id})">
+        <circle cx="78" cy="96" r="5"/><circle cx="150" cy="64" r="5"/><circle cx="196" cy="40" r="6"/>
+      </g>
+      <rect x="40" y="40" width="40" height="8" rx="4" fill="${LINE}" opacity=".22"/>
+      <circle cx="262" cy="92" r="30" fill="url(#g${id}b)"/>
+      <circle cx="262" cy="82" r="11" fill="#fff" opacity=".95"/>
+      <path d="M244 120a18 18 0 0 1 36 0z" fill="#fff" opacity=".95"/>
+      <circle cx="296" cy="48" r="6" fill="#00cec9" opacity=".8"/>
+      <circle cx="240" cy="40" r="4" fill="#6c5ce7" opacity=".7"/>
+    `);
+  }
+
+  return { cases, transcripts, feedback, board, search, hero };
+})();
+
+  </script>
+  <script>
+/* ============================================================
+   ui.js — 共通UIヘルパー (DOM・モーダル・トースト・整形)
+   ============================================================ */
+
+const UI = (() => {
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+  /* HTMLエスケープ (XSS対策) */
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  /* 日付整形 */
+  function fmtDate(d) {
+    if (!d) return "—";
+    const dt = typeof d === "number" ? new Date(d) : new Date(d);
+    if (isNaN(dt)) return esc(d);
+    return `${dt.getFullYear()}/${String(dt.getMonth() + 1).padStart(2, "0")}/${String(dt.getDate()).padStart(2, "0")}`;
+  }
+
+  function relTime(t) {
+    const diff = Date.now() - t, m = 60000, h = 3600000, d = 86400000;
+    if (diff < m) return "たった今";
+    if (diff < h) return `${Math.floor(diff / m)}分前`;
+    if (diff < d) return `${Math.floor(diff / h)}時間前`;
+    if (diff < d * 30) return `${Math.floor(diff / d)}日前`;
+    return fmtDate(t);
+  }
+
+  function daysLeft(dateStr) {
+    if (!dateStr) return null;
+    const diff = Math.ceil((new Date(dateStr) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    return diff;
+  }
+
+  function initials(name) {
+    if (!name) return "?";
+    return name.trim().slice(0, 2);
+  }
+
+  function statusBadge(status) {
+    const s = Store.STATUSES[status] || Store.STATUSES.lead;
+    return `<span class="badge ${s.cls}">${s.label}</span>`;
+  }
+  function priBadge(p) {
+    const x = Store.PRIORITIES[p]; if (!x) return "";
+    return `<span class="pri ${x.cls}">優先度 ${x.label}</span>`;
+  }
+
+  /* ---------- Modal ---------- */
+  function openModal(html) {
+    const m = $("#modal"), ov = $("#overlay");
+    m.innerHTML = html;
+    ov.classList.add("open");
+    document.body.style.overflow = "hidden";
+    const f = m.querySelector("input,textarea,select"); if (f) setTimeout(() => f.focus(), 60);
+  }
+  function closeModal() {
+    $("#overlay").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  /* ---------- Toast ---------- */
+  function toast(msg) {
+    const w = $("#toastWrap");
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>${esc(msg)}`;
+    w.appendChild(el);
+    setTimeout(() => { el.style.opacity = "0"; el.style.transition = ".3s"; setTimeout(() => el.remove(), 300); }, 2400);
+  }
+
+  function confirmModal(title, body, onYes, danger = true) {
+    openModal(`
+      <div class="modal-head"><h3>${esc(title)}</h3>
+        <div class="x" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      </div>
+      <div class="modal-body"><p style="color:var(--text-muted);font-size:14px;">${esc(body)}</p></div>
+      <div class="modal-foot">
+        <button class="btn" data-close>キャンセル</button>
+        <button class="btn ${danger ? "btn-danger" : "btn-primary"}" id="confirmYes">${danger ? "削除する" : "実行"}</button>
+      </div>`);
+    $("#confirmYes").onclick = () => { onYes(); closeModal(); };
+  }
+
+  return { $, $$, esc, fmtDate, relTime, daysLeft, initials, statusBadge, priBadge, openModal, closeModal, toast, confirmModal };
+})();
+
+  </script>
+  <script>
+/* ============================================================
+   app.js — ビュー描画とルーティング
+   ============================================================ */
+
+(() => {
+  const { $, $$, esc, fmtDate, relTime, daysLeft, initials, statusBadge, priBadge,
+          openModal, closeModal, toast, confirmModal } = UI;
+
+  const content = $("#content");
+  let state = { view: "dashboard", caseId: null, tab: "overview", filter: "all", q: "" };
+
+  /* ============ Icons ============ */
+  const ic = {
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3z"/><path d="M8 9h8M8 12h5"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.8 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
+  };
+
+  const FB_TYPES = {
+    good: { label: "良い点", color: "var(--st-done)" },
+    request: { label: "要望", color: "var(--st-progress)" },
+    issue: { label: "課題", color: "var(--pri-high)" },
+    note: { label: "メモ", color: "var(--st-lead)" },
+  };
+
+  /* ============ Router ============ */
+  function go(view, opts = {}) {
+    state = { ...state, view, ...opts };
+    $$("#nav .nav-item").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
+    $("#sidebar").classList.remove("open");
+    render();
+    document.querySelector(".main").scrollTo({ top: 0 });
+  }
+
+  const titles = {
+    dashboard: ["ダッシュボード", "全体の状況をひと目で"],
+    cases: ["案件リスト", "進行中の案件を管理"],
+    board: ["ワークフロー", "ドラッグして進行状況を更新"],
+    transcripts: ["文字起こし", "打ち合わせの記録"],
+    feedback: ["フィードバック", "気づき・要望・課題"],
+    detail: ["案件詳細", ""],
+  };
+
+  function render() {
+    const [t, s] = titles[state.view] || titles.dashboard;
+    $("#pageTitle").childNodes[0].nodeValue = t;
+    $("#pageSub").textContent = s;
+    const map = { dashboard: viewDashboard, cases: viewCases, board: viewBoard, transcripts: viewTranscripts, feedback: viewFeedback, detail: viewDetail };
+    content.innerHTML = `<div class="view">${(map[state.view] || viewDashboard)()}</div>`;
+    bindView();
+  }
+
+  /* ============ View: Dashboard ============ */
+  function viewDashboard() {
+    const st = Store.stats();
+    const cards = [
+      { v: st.total, l: "案件総数", c: "var(--st-lead)", ico: ic.folder },
+      { v: st.active, l: "進行中・レビュー", c: "var(--st-progress)", ico: ic.play },
+      { v: st.done, l: "完了", c: "var(--st-done)", ico: ic.check },
+      { v: st.transcripts, l: "文字起こし数", c: "var(--accent-2)", ico: ic.doc },
+    ];
+    const kpis = cards.map((k) => `
+      <div class="kpi">
+        <div class="ic" style="background:color-mix(in srgb,${k.c} 18%,transparent);color:${k.c}">${k.ico}</div>
+        <div class="val" data-count="${k.v}">0</div>
+        <div class="lbl">${k.l}</div>
+      </div>`).join("");
+
+    const hero = `
+      <div class="hero">
+        <div class="hero-txt">
+          <h1>おかえりなさい 👋</h1>
+          <p>進行中の案件は <b>${st.active}件</b>。平均達成率は <b>${st.avgProgress}%</b> です。今日も一歩ずつ進めましょう。</p>
+        </div>
+        ${Art.hero()}
+      </div>`;
+
+    const active = Store.cases.all().filter((c) => c.status !== "done").slice(0, 4);
+    const activeHtml = active.length ? active.map(caseCard).join("") :
+      `<p style="color:var(--text-faint);font-size:14px;padding:20px;">進行中の案件はありません 🎉</p>`;
+
+    const feed = Store.activity(7).map((e) => {
+      const c = Store.cases.get(e.caseId);
+      const icon = e.type === "transcript" ? ic.doc : e.type === "feedback" ? ic.star : ic.folder;
+      const verb = e.type === "transcript" ? "文字起こしを追加" : e.type === "feedback" ? "フィードバック" : "案件を作成";
+      return `<div class="feed-item">
+        <div class="feed-ic">${icon}</div>
+        <div><div class="feed-txt"><b>${esc(c ? c.title : "（削除済み）")}</b> — ${verb}</div>
+        <div class="feed-time">${relTime(e.t)}</div></div></div>`;
+    }).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだ活動がありません</p>`;
+
+    return `
+      ${hero}
+      <div class="kpi-grid">${kpis}</div>
+      <div class="two-col">
+        <div>
+          <div class="section-head">
+            <h2>進行中の案件</h2><span class="count">${active.length} 件</span>
+            <div class="right"><button class="btn btn-sm" data-go="cases">すべて見る</button>
+            <button class="btn btn-primary btn-sm" data-new-case>${ic.plus}案件を追加</button></div>
+          </div>
+          <div class="case-grid">${activeHtml}</div>
+        </div>
+        <div>
+          <div class="section-head"><h2>進捗の平均</h2></div>
+          <div class="panel" style="margin-bottom:18px;">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">
+              <span style="font-size:34px;font-weight:800;">${st.avgProgress}%</span>
+              <span style="color:var(--text-muted);font-size:13px;">全案件の平均達成率</span>
+            </div>
+            <div class="progress"><i style="width:${st.avgProgress}%"></i></div>
+          </div>
+          <div class="section-head"><h2>最近の活動</h2></div>
+          <div class="panel">${feed}</div>
+        </div>
+      </div>`;
+  }
+
+  /* ============ View: Cases ============ */
+  function viewCases() {
+    let list = Store.cases.all();
+    if (state.filter !== "all") list = list.filter((c) => c.status === state.filter);
+    if (state.q) list = list.filter((c) => matchCase(c, state.q));
+
+    const chips = [["all", "すべて"], ...Object.entries(Store.STATUSES).map(([k, v]) => [k, v.label])]
+      .map(([k, l]) => `<div class="chip ${state.filter === k ? "active" : ""}" data-filter="${k}">${l}</div>`).join("");
+
+    const grid = list.length ? list.map(caseCard).join("") : emptyState("folder", "案件がありません", "右上のボタンから最初の案件を追加しましょう。", "案件を追加", "new-case");
+
+    return `
+      <div class="section-head" style="margin-bottom:18px;">
+        <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-new-case>${ic.plus}案件を追加</button></div>
+      </div>
+      <div class="filters">${chips}</div>
+      <div class="case-grid">${grid}</div>`;
+  }
+
+  function caseCard(c) {
+    const tx = Store.transcripts.byCase(c.id).length;
+    const fb = Store.feedbacks.byCase(c.id).length;
+    const dl = daysLeft(c.dueDate);
+    const dueTxt = c.dueDate
+      ? (dl < 0 ? `<span style="color:var(--pri-high)">${-dl}日超過</span>` : dl === 0 ? `<span style="color:var(--st-progress)">本日締切</span>` : `あと${dl}日`)
+      : "期限なし";
+    return `
+      <div class="case-card" data-open="${c.id}">
+        <div class="cc-top">
+          <div style="flex:1;min-width:0;">
+            <div class="cc-title">${esc(c.title)}</div>
+            <div class="cc-client">${esc(c.client || "—")}</div>
+          </div>
+          ${statusBadge(c.status)}
+        </div>
+        ${c.description ? `<div class="cc-desc">${esc(c.description)}</div>` : ""}
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-faint);margin-bottom:6px;">
+            <span>進捗</span><span>${c.progress || 0}%</span>
+          </div>
+          <div class="progress"><i style="width:${c.progress || 0}%"></i></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${(c.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+        <div class="cc-foot">
+          ${priBadge(c.priority)}
+          <span class="cc-meta">${ic.doc}${tx}</span>
+          <span class="cc-meta">${ic.star}${fb}</span>
+          <span class="cc-meta" style="margin-left:auto;">${ic.cal}${dueTxt}</span>
+        </div>
+      </div>`;
+  }
+
+  function matchCase(c, q) {
+    q = q.toLowerCase();
+    return [c.title, c.client, c.description, ...(c.tags || [])].some((x) => (x || "").toLowerCase().includes(q));
+  }
+
+  /* ============ View: Board (Kanban workflow) ============ */
+  const STATUS_DOT = { lead: "var(--st-lead)", progress: "var(--st-progress)", review: "var(--st-review)", done: "var(--st-done)", hold: "var(--st-hold)" };
+
+  function viewBoard() {
+    let all = Store.cases.all();
+    if (state.q) all = all.filter((c) => matchCase(c, state.q));
+    const order = ["lead", "progress", "review", "done", "hold"];
+    const cols = order.map((status) => {
+      const s = Store.STATUSES[status];
+      const items = all.filter((c) => c.status === status);
+      const cards = items.length
+        ? items.map((c, i) => boardCard(c, i)).join("")
+        : `<div class="board-empty">ここにドラッグ</div>`;
+      return `
+        <div class="board-col" data-col="${status}">
+          <div class="board-col-head">
+            <span class="dot" style="background:${STATUS_DOT[status]}"></span>
+            <span class="ttl">${s.label}</span>
+            <span class="cnt">${items.length}</span>
+          </div>
+          <div class="board-list" data-list="${status}">${cards}</div>
+        </div>`;
+    }).join("");
+    return `
+      <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:16px;">${ic.play}カードを掴んで別の列へドラッグすると、案件のステータスが切り替わります。</p>
+      <div class="board-wrap"><div class="board">${cols}</div></div>`;
+  }
+
+  function boardCard(c, i) {
+    const tx = Store.transcripts.byCase(c.id).length;
+    const dl = daysLeft(c.dueDate);
+    const due = c.dueDate ? (dl < 0 ? `${-dl}日超過` : dl === 0 ? "本日" : `あと${dl}日`) : "";
+    return `
+      <div class="board-card" draggable="true" data-id="${c.id}" data-open="${c.id}" style="animation-delay:${i * 0.04}s">
+        ${priBadge(c.priority)}
+        <div class="bc-title" style="margin-top:${c.priority ? "8px" : "0"}">${esc(c.title)}</div>
+        <div class="bc-client">${esc(c.client || "—")}</div>
+        <div class="bc-bar"><i style="width:${c.progress || 0}%"></i></div>
+        <div class="bc-foot">
+          <span class="cc-meta">${ic.doc}${tx}</span>
+          ${due ? `<span class="cc-meta" style="margin-left:auto;">${ic.cal}${due}</span>` : ""}
+        </div>
+      </div>`;
+  }
+
+  /* ============ View: Transcripts (global) ============ */
+  function viewTranscripts() {
+    let list = Store.transcripts.all();
+    if (state.q) list = list.filter((t) => (t.title + t.content).toLowerCase().includes(state.q.toLowerCase()));
+    if (!list.length) return emptyState("doc", "文字起こしがありません", "案件を開いて打ち合わせの記録を追加できます。", "案件リストへ", "go-cases");
+    return list.map((t) => {
+      const c = Store.cases.get(t.caseId);
+      return `<div class="item" data-open="${t.caseId}" style="cursor:pointer;">
+        <div class="item-head">
+          <span class="badge lead" style="background:var(--surface-strong);color:var(--text-muted);">${ic.folder}${esc(c ? c.title : "削除済み")}</span>
+          <span class="it-title" style="margin-left:4px;">${esc(t.title)}</span>
+          <span class="it-date">${fmtDate(t.date)}</span>
+        </div>
+        <div class="item-body clamp">${esc(t.content)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /* ============ View: Feedback (global) ============ */
+  function viewFeedback() {
+    let list = Store.feedbacks.all();
+    if (state.q) list = list.filter((f) => f.content.toLowerCase().includes(state.q.toLowerCase()));
+    if (!list.length) return emptyState("star", "フィードバックがありません", "案件を開いて気づきや要望を記録しましょう。", "案件リストへ", "go-cases");
+    return list.map((f) => {
+      const c = Store.cases.get(f.caseId);
+      const ft = FB_TYPES[f.type] || FB_TYPES.note;
+      return `<div class="item fb-item" data-open="${f.caseId}" style="cursor:pointer;border-left-color:${ft.color};">
+        <div class="item-head">
+          <div class="avatar">${esc(initials(f.author))}</div>
+          <span class="it-title">${esc(f.author || "匿名")}</span>
+          <span class="pri" style="color:${ft.color};background:color-mix(in srgb,${ft.color} 16%,transparent);">${ft.label}</span>
+          <span class="it-date">${relTime(f.createdAt)}</span>
+        </div>
+        <div class="item-body">${esc(f.content)}</div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:8px;">${ic.folder} ${esc(c ? c.title : "削除済み")}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /* ============ View: Case Detail ============ */
+  function viewDetail() {
+    const c = Store.cases.get(state.caseId);
+    if (!c) { go("cases"); return ""; }
+    const tx = Store.transcripts.byCase(c.id), fb = Store.feedbacks.byCase(c.id), ms = Store.milestones.byCase(c.id);
+    const dl = daysLeft(c.dueDate);
+
+    const tabs = [
+      ["overview", "概要", null],
+      ["transcripts", "文字起こし", tx.length],
+      ["feedback", "フィードバック", fb.length],
+      ["progress", "進捗", ms.length],
+    ].map(([k, l, n]) => `<div class="tab ${state.tab === k ? "active" : ""}" data-tab="${k}">${l}${n != null ? `<span class="n">${n}</span>` : ""}</div>`).join("");
+
+    let body = "";
+    if (state.tab === "overview") body = detailOverview(c, tx, fb, ms);
+    else if (state.tab === "transcripts") body = detailTranscripts(c, tx);
+    else if (state.tab === "feedback") body = detailFeedback(c, fb);
+    else if (state.tab === "progress") body = detailProgress(c, ms);
+
+    return `
+      <button class="btn btn-ghost back-btn" data-go="cases">${ic.back}案件リストに戻る</button>
+      <div class="detail-head">
+        <div class="dh-main">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            ${statusBadge(c.status)} ${priBadge(c.priority)}
+          </div>
+          <div class="detail-title">${esc(c.title)}</div>
+          <div class="detail-sub">
+            <span>${ic.folder}${esc(c.client || "クライアント未設定")}</span>
+            <span class="dot"></span>
+            <span>${ic.cal}${c.dueDate ? `${fmtDate(c.dueDate)}${dl != null ? `（${dl < 0 ? `${-dl}日超過` : dl === 0 ? "本日" : `あと${dl}日`}）` : ""}` : "期限なし"}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" data-edit-case="${c.id}">${ic.edit}編集</button>
+          <button class="btn btn-sm btn-danger" data-del-case="${c.id}">${ic.trash}</button>
+        </div>
+      </div>
+      ${flowSteps(c)}
+      <div class="tabs">${tabs}</div>
+      <div>${body}</div>`;
+  }
+
+  function flowSteps(c) {
+    const order = ["lead", "progress", "review", "done"];
+    const cur = order.indexOf(c.status);
+    const parts = order.map((s, i) => {
+      const cls = c.status === s ? "active" : i < cur && cur >= 0 ? "passed" : "";
+      const inner = (i < cur && cur >= 0) ? ic.check : (i + 1);
+      const sep = i < order.length - 1 ? `<div class="flow-sep ${i < cur ? "passed" : ""}"></div>` : "";
+      return `<div class="flow-step ${cls}" data-set-status="${s}"><span class="num">${inner}</span>${Store.STATUSES[s].label}</div>${sep}`;
+    }).join("");
+    const hold = `<div class="flow-step ${c.status === "hold" ? "active" : ""}" data-set-status="hold" style="margin-left:8px;"><span class="num">⏸</span>保留</div>`;
+    return `<div class="flow">${parts}${hold}</div>`;
+  }
+
+  function detailOverview(c, tx, fb, ms) {
+    const doneMs = ms.filter((m) => m.done).length;
+    return `
+      <div class="two-col">
+        <div>
+          <div class="panel" style="margin-bottom:18px;">
+            <h2 style="font-size:15px;margin-bottom:10px;">説明</h2>
+            <p style="color:var(--text-muted);font-size:14px;white-space:pre-wrap;line-height:1.8;">${c.description ? esc(c.description) : "<span style='color:var(--text-faint)'>説明は未入力です。「編集」から追加できます。</span>"}</p>
+            ${(c.tags || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px;">${c.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+          </div>
+          <div class="section-head"><h2>最近の文字起こし</h2><span class="count">${tx.length}件</span>
+            <div class="right"><button class="btn btn-sm" data-tab="transcripts">すべて</button></div></div>
+          ${tx.slice(0, 2).map((t) => `<div class="item"><div class="item-head"><span class="it-title">${esc(t.title)}</span><span class="it-date">${fmtDate(t.date)}</span></div><div class="item-body clamp">${esc(t.content)}</div></div>`).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだありません</p>`}
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+              <span style="font-size:32px;font-weight:800;">${c.progress || 0}%</span>
+              <span style="color:var(--text-muted);font-size:13px;">達成率</span>
+            </div>
+            <div class="progress" style="margin-bottom:14px;"><i style="width:${c.progress || 0}%"></i></div>
+            <input type="range" min="0" max="100" step="5" value="${c.progress || 0}" id="progSlider" style="width:100%;accent-color:var(--accent);" />
+          </div>
+          <div class="panel">
+            <h2 style="font-size:15px;margin-bottom:14px;">サマリー</h2>
+            ${statRow(ic.doc, "文字起こし", tx.length)}
+            ${statRow(ic.star, "フィードバック", fb.length)}
+            ${statRow(ic.check, "マイルストーン", `${doneMs}/${ms.length}`)}
+          </div>
+        </div>
+      </div>`;
+  }
+  function statRow(icon, label, val) {
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-faint);width:18px;display:grid;">${icon}</span>
+      <span style="font-size:13.5px;color:var(--text-muted);">${label}</span>
+      <span style="margin-left:auto;font-weight:700;">${val}</span></div>`;
+  }
+
+  function detailTranscripts(c, tx) {
+    return `
+      <div class="section-head"><h2>文字起こし</h2><span class="count">${tx.length}件</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-tx="${c.id}">${ic.plus}記録を追加</button></div></div>
+      ${tx.length ? tx.map((t) => `
+        <div class="item">
+          <div class="item-head">
+            <span class="it-title">${esc(t.title)}</span>
+            <span class="it-date">${ic.cal}${fmtDate(t.date)}</span>
+            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-tx="${t.id}">${ic.trash}</button></div>
+          </div>
+          <div class="item-body" id="tx-${t.id}">${esc(t.content)}</div>
+        </div>`).join("") : emptyState("doc", "記録がありません", "打ち合わせの文字起こしを貼り付けて保存しましょう。", "記録を追加", "new-tx", c.id)}`;
+  }
+
+  function detailFeedback(c, fb) {
+    return `
+      <div class="section-head"><h2>フィードバック</h2><span class="count">${fb.length}件</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-fb="${c.id}">${ic.plus}追加</button></div></div>
+      ${fb.length ? fb.map((f) => {
+        const ft = FB_TYPES[f.type] || FB_TYPES.note;
+        return `<div class="item fb-item" style="border-left-color:${ft.color};">
+          <div class="item-head">
+            <div class="avatar">${esc(initials(f.author))}</div>
+            <span class="it-title">${esc(f.author || "匿名")}</span>
+            <span class="pri" style="color:${ft.color};background:color-mix(in srgb,${ft.color} 16%,transparent);">${ft.label}</span>
+            <span class="it-date">${relTime(f.createdAt)}</span>
+            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-fb="${f.id}">${ic.trash}</button></div>
+          </div>
+          <div class="item-body">${esc(f.content)}</div>
+        </div>`;
+      }).join("") : emptyState("star", "フィードバックがありません", "気づき・要望・課題を記録して改善につなげましょう。", "追加", "new-fb", c.id)}`;
+  }
+
+  function detailProgress(c, ms) {
+    const timeline = ms.length ? `<div class="panel">${ms.map((m) => `
+      <div class="milestone ${m.done ? "done" : ""}">
+        <div class="ms-mark">
+          <div class="ms-dot" data-toggle-ms="${m.id}" style="cursor:pointer;">${m.done ? ic.check : ""}</div>
+          <div class="ms-line"></div>
+        </div>
+        <div class="ms-body">
+          <div class="ms-title" data-toggle-ms="${m.id}">${esc(m.title)}</div>
+          <div class="ms-date">${ic.cal}${fmtDate(m.date)} ${m.done ? "· 完了" : ""}
+            <span data-del-ms="${m.id}" style="cursor:pointer;color:var(--text-faint);margin-left:8px;">削除</span></div>
+        </div>
+      </div>`).join("")}</div>` : emptyState("check", "マイルストーンがありません", "タスクや節目を登録して進捗を可視化しましょう。", "マイルストーンを追加", "new-ms", c.id);
+
+    return `
+      <div class="section-head"><h2>マイルストーン</h2><span class="count">${ms.filter((m) => m.done).length}/${ms.length} 完了</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-ms="${c.id}">${ic.plus}追加</button></div></div>
+      ${timeline}`;
+  }
+
+  const ART = { folder: Art.cases, doc: Art.transcripts, star: Art.feedback, check: Art.board, search: Art.search };
+  function emptyState(icon, title, desc, btnLabel, action, arg = "") {
+    const art = (ART[icon] || Art.cases)();
+    return `<div class="empty">
+      ${art}
+      <h3>${esc(title)}</h3><p>${esc(desc)}</p>
+      <button class="btn btn-primary" data-empty-action="${action}" data-arg="${arg}">${ic.plus}${esc(btnLabel)}</button>
+    </div>`;
+  }
+
+  /* ============ Forms (modals) ============ */
+  function caseForm(existing) {
+    const c = existing || {};
+    const stOpts = Object.entries(Store.STATUSES).map(([k, v]) => `<option value="${k}" ${c.status === k ? "selected" : ""}>${v.label}</option>`).join("");
+    const prOpts = Object.entries(Store.PRIORITIES).map(([k, v]) => `<option value="${k}" ${c.priority === k ? "selected" : ""}>${v.label}</option>`).join("");
+    openModal(`
+      <div class="modal-head"><h3>${existing ? "案件を編集" : "案件を追加"}</h3>
+        <div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field"><label>案件名 *</label><input id="f-title" value="${esc(c.title || "")}" placeholder="例: ○○社 サイトリニューアル" /></div>
+        <div class="field"><label>クライアント</label><input id="f-client" value="${esc(c.client || "")}" placeholder="会社名・担当者" /></div>
+        <div class="field-row">
+          <div class="field"><label>ステータス</label><select id="f-status">${stOpts}</select></div>
+          <div class="field"><label>優先度</label><select id="f-priority"><option value="">なし</option>${prOpts}</select></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>期限</label><input type="date" id="f-due" value="${esc(c.dueDate || "")}" /></div>
+          <div class="field"><label>タグ（カンマ区切り）</label><input id="f-tags" value="${esc((c.tags || []).join(", "))}" placeholder="GAS, 経理" /></div>
+        </div>
+        <div class="field"><label>説明</label><textarea id="f-desc" placeholder="案件の概要・ゴール・背景など">${esc(c.description || "")}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close>キャンセル</button>
+        <button class="btn btn-primary" id="saveCase">${existing ? "保存" : "追加する"}</button>
+      </div>`);
+    $("#saveCase").onclick = () => {
+      const title = $("#f-title").value.trim();
+      if (!title) { $("#f-title").focus(); $("#f-title").style.borderColor = "var(--pri-high)"; return; }
+      const data = {
+        title, client: $("#f-client").value.trim(),
+        status: $("#f-status").value, priority: $("#f-priority").value,
+        dueDate: $("#f-due").value,
+        tags: $("#f-tags").value.split(",").map((s) => s.trim()).filter(Boolean),
+        description: $("#f-desc").value.trim(),
+      };
+      if (existing) { Store.cases.update(existing.id, data); toast("案件を更新しました"); }
+      else { const nc = Store.cases.add(data); state.caseId = nc.id; toast("案件を追加しました"); }
+      closeModal(); render();
+    };
+  }
+
+  function txForm(caseId) {
+    openModal(`
+      <div class="modal-head"><h3>文字起こしを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label>タイトル *</label><input id="t-title" placeholder="例: 第2回 定例MTG" /></div>
+          <div class="field"><label>日付</label><input type="date" id="t-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+        </div>
+        <div class="field"><label>本文（文字起こし）*</label>
+          <textarea class="big" id="t-content" placeholder="打ち合わせの文字起こしを貼り付け…"></textarea>
+          <div class="hint">議事録ツールや録音アプリの書き起こしをそのまま貼り付けできます。</div>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveTx">保存</button></div>`);
+    $("#saveTx").onclick = () => {
+      const title = $("#t-title").value.trim(), c = $("#t-content").value.trim();
+      if (!title || !c) { toast("タイトルと本文を入力してください"); return; }
+      Store.transcripts.add({ caseId, title, date: $("#t-date").value, content: c });
+      toast("文字起こしを保存しました"); closeModal(); render();
+    };
+  }
+
+  function fbForm(caseId) {
+    const opts = Object.entries(FB_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+    openModal(`
+      <div class="modal-head"><h3>フィードバックを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label>記入者</label><input id="b-author" placeholder="名前" value="長谷川" /></div>
+          <div class="field"><label>種別</label><select id="b-type">${opts}</select></div>
+        </div>
+        <div class="field"><label>内容 *</label><textarea id="b-content" placeholder="気づき・要望・課題など"></textarea></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveFb">保存</button></div>`);
+    $("#saveFb").onclick = () => {
+      const c = $("#b-content").value.trim();
+      if (!c) { toast("内容を入力してください"); return; }
+      Store.feedbacks.add({ caseId, author: $("#b-author").value.trim() || "匿名", type: $("#b-type").value, content: c });
+      toast("フィードバックを保存しました"); closeModal(); render();
+    };
+  }
+
+  function msForm(caseId) {
+    openModal(`
+      <div class="modal-head"><h3>マイルストーンを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field"><label>タイトル *</label><input id="m-title" placeholder="例: 初稿提出" /></div>
+        <div class="field"><label>予定日</label><input type="date" id="m-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveMs">追加</button></div>`);
+    $("#saveMs").onclick = () => {
+      const t = $("#m-title").value.trim();
+      if (!t) { toast("タイトルを入力してください"); return; }
+      Store.milestones.add({ caseId, title: t, date: $("#m-date").value });
+      toast("マイルストーンを追加しました"); closeModal(); render();
+    };
+  }
+
+  function closeIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>'; }
+
+  /* ============ Event delegation ============ */
+  function bindView() {
+    // progress slider
+    const slider = $("#progSlider");
+    if (slider) {
+      slider.oninput = (e) => {
+        const v = +e.target.value;
+        Store.cases.update(state.caseId, { progress: v });
+        const p = content.querySelector(".panel .progress > i");
+        if (p) p.style.width = v + "%";
+        const lbl = content.querySelector(".panel span");
+        if (lbl) lbl.textContent = v + "%";
+      };
+    }
+    countUp();
+    initBoardDnD();
+    $$(".case-grid > .case-card").forEach((c, i) => {
+      c.classList.add("stagger");
+      c.style.animationDelay = (i * 0.05) + "s";
+    });
+  }
+
+  /* 数字カウントアップ */
+  function countUp() {
+    $$("[data-count]").forEach((el) => {
+      const target = +el.dataset.count || 0;
+      if (target === 0) { el.textContent = "0"; return; }
+      const dur = 850, start = performance.now();
+      const tick = (now) => {
+        const p = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased);
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  /* カンバンのドラッグ&ドロップ */
+  let dragId = null;
+  function initBoardDnD() {
+    const cards = $$(".board-card");
+    if (!cards.length) return;
+    cards.forEach((card) => {
+      card.addEventListener("dragstart", (e) => {
+        dragId = card.dataset.id;
+        card.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+      });
+      card.addEventListener("dragend", () => { card.classList.remove("dragging"); dragId = null; });
+    });
+    $$(".board-col").forEach((col) => {
+      col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("drag-over"); });
+      col.addEventListener("dragleave", (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove("drag-over"); });
+      col.addEventListener("drop", (e) => {
+        e.preventDefault();
+        col.classList.remove("drag-over");
+        const newStatus = col.dataset.col;
+        if (dragId) {
+          const c = Store.cases.get(dragId);
+          if (c && c.status !== newStatus) {
+            Store.cases.update(dragId, { status: newStatus });
+            toast(`「${c.title.slice(0, 14)}」を「${Store.STATUSES[newStatus].label}」へ`);
+            render();
+          }
+        }
+      });
+    });
+  }
+
+  content.addEventListener("click", (e) => {
+    const el = (sel) => e.target.closest(sel);
+    let t;
+    if ((t = el("[data-open]"))) return go("detail", { caseId: t.dataset.open, tab: "overview" });
+    if ((t = el("[data-tab]"))) { state.tab = t.dataset.tab; return render(); }
+    if ((t = el("[data-filter]"))) { state.filter = t.dataset.filter; return render(); }
+    if ((t = el("[data-go]"))) return go(t.dataset.go);
+    if (el("[data-new-case]")) return caseForm();
+    if ((t = el("[data-edit-case]"))) return caseForm(Store.cases.get(t.dataset.editCase));
+    if ((t = el("[data-new-tx]"))) return txForm(t.dataset.newTx);
+    if ((t = el("[data-new-fb]"))) return fbForm(t.dataset.newFb);
+    if ((t = el("[data-new-ms]"))) return msForm(t.dataset.newMs);
+    if ((t = el("[data-set-status]"))) {
+      const ns = t.dataset.setStatus;
+      Store.cases.update(state.caseId, { status: ns });
+      toast(`ステータスを「${Store.STATUSES[ns].label}」に変更`);
+      return render();
+    }
+    if ((t = el("[data-toggle-ms]"))) { Store.milestones.toggle(t.dataset.toggleMs); return render(); }
+    if ((t = el("[data-del-case]"))) return confirmModal("案件を削除", "この案件と関連する文字起こし・FB・進捗もすべて削除されます。", () => { Store.cases.remove(t.dataset.delCase); toast("削除しました"); go("cases"); });
+    if ((t = el("[data-del-tx]"))) return confirmModal("文字起こしを削除", "この記録を削除しますか？", () => { Store.transcripts.remove(t.dataset.delTx); toast("削除しました"); render(); });
+    if ((t = el("[data-del-fb]"))) return confirmModal("フィードバックを削除", "削除しますか？", () => { Store.feedbacks.remove(t.dataset.delFb); toast("削除しました"); render(); });
+    if ((t = el("[data-del-ms]"))) { Store.milestones.remove(t.dataset.delMs); toast("削除しました"); return render(); }
+    if ((t = el("[data-empty-action]"))) {
+      const a = t.dataset.emptyAction, arg = t.dataset.arg;
+      if (a === "new-case") return caseForm();
+      if (a === "go-cases") return go("cases");
+      if (a === "new-tx") return txForm(arg);
+      if (a === "new-fb") return fbForm(arg);
+      if (a === "new-ms") return msForm(arg);
+    }
+  });
+
+  /* ============ Global wiring ============ */
+  $("#nav").addEventListener("click", (e) => { const n = e.target.closest(".nav-item"); if (n) go(n.dataset.view); });
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay" || e.target.closest("[data-close]")) closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  $("#globalSearch").addEventListener("input", (e) => {
+    state.q = e.target.value;
+    if (["cases", "board", "transcripts", "feedback"].includes(state.view)) render();
+    else if (state.q) go("cases");
+  });
+
+  // Theme
+  const themeToggle = $("#themeToggle"), themeLabel = $("#themeLabel");
+  const savedTheme = localStorage.getItem("cs-theme") || "dark";
+  document.documentElement.dataset.theme = savedTheme;
+  themeLabel.textContent = savedTheme === "dark" ? "🌙 ダーク" : "☀️ ライト";
+  themeToggle.onclick = () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("cs-theme", next);
+    themeLabel.textContent = next === "dark" ? "🌙 ダーク" : "☀️ ライト";
+  };
+
+  // Menu (mobile)
+  $("#menuBtn").onclick = () => $("#sidebar").classList.toggle("open");
+
+  // Export / Import
+  $("#exportBtn").onclick = () => {
+    const blob = new Blob([Store.exportJSON()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `case-studio-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); toast("データを書き出しました");
+  };
+  $("#importBtn").onclick = () => $("#importFile").click();
+  $("#importFile").onchange = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { Store.importJSON(reader.result); toast("データを読み込みました"); go("dashboard"); }
+      catch (err) { toast("読み込みに失敗: " + err.message); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  // boot
+  render();
+})();
+
+  </script>
+</body>
+</html>
