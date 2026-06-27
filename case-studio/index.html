@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Studio — 案件・打ち合わせ管理</title>
+  <meta name="description" content="案件リストと打ち合わせの文字起こし、フィードバック・進捗管理を一元化するアプリ" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236c5ce7'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3ECS%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="app">
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo">CS</div>
+        <div class="name">Case Studio<span>案件 & 打ち合わせ管理</span></div>
+      </div>
+      <nav class="nav" id="nav">
+        <div class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          ダッシュボード
+        </div>
+        <div class="nav-item" data-view="cases">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          案件リスト
+        </div>
+        <div class="nav-item" data-view="transcripts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3z"/><path d="M8 9h8M8 12h5"/></svg>
+          文字起こし
+        </div>
+        <div class="nav-item" data-view="feedback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.8 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg>
+          フィードバック
+        </div>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="theme-toggle" id="themeToggle">
+          <span>テーマ</span>
+          <span id="themeLabel">🌙 ダーク</span>
+        </div>
+        <div class="io-btns">
+          <button class="btn btn-sm" id="exportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+            書出
+          </button>
+          <button class="btn btn-sm" id="importBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>
+            読込
+          </button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ Main ============ -->
+    <main class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost menu-btn" id="menuBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="page-title" id="pageTitle">ダッシュボード<small id="pageSub">全体の状況をひと目で</small></div>
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input type="text" id="globalSearch" placeholder="案件・文字起こしを検索…" />
+        </div>
+      </header>
+      <div class="content" id="content"><!-- views injected here --></div>
+    </main>
+  </div>
+
+  <!-- ============ Modal ============ -->
+  <div class="overlay" id="overlay">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

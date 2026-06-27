@@ -1,0 +1,548 @@
+/* ============================================================
+   app.js — ビュー描画とルーティング
+   ============================================================ */
+
+(() => {
+  const { $, $$, esc, fmtDate, relTime, daysLeft, initials, statusBadge, priBadge,
+          openModal, closeModal, toast, confirmModal } = UI;
+
+  const content = $("#content");
+  let state = { view: "dashboard", caseId: null, tab: "overview", filter: "all", q: "" };
+
+  /* ============ Icons ============ */
+  const ic = {
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3z"/><path d="M8 9h8M8 12h5"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.8 5.7 21l2.3-7.1-6-4.5h7.6z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
+  };
+
+  const FB_TYPES = {
+    good: { label: "良い点", color: "var(--st-done)" },
+    request: { label: "要望", color: "var(--st-progress)" },
+    issue: { label: "課題", color: "var(--pri-high)" },
+    note: { label: "メモ", color: "var(--st-lead)" },
+  };
+
+  /* ============ Router ============ */
+  function go(view, opts = {}) {
+    state = { ...state, view, ...opts };
+    $$("#nav .nav-item").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
+    $("#sidebar").classList.remove("open");
+    render();
+    document.querySelector(".main").scrollTo({ top: 0 });
+  }
+
+  const titles = {
+    dashboard: ["ダッシュボード", "全体の状況をひと目で"],
+    cases: ["案件リスト", "進行中の案件を管理"],
+    transcripts: ["文字起こし", "打ち合わせの記録"],
+    feedback: ["フィードバック", "気づき・要望・課題"],
+    detail: ["案件詳細", ""],
+  };
+
+  function render() {
+    const [t, s] = titles[state.view] || titles.dashboard;
+    $("#pageTitle").childNodes[0].nodeValue = t;
+    $("#pageSub").textContent = s;
+    const map = { dashboard: viewDashboard, cases: viewCases, transcripts: viewTranscripts, feedback: viewFeedback, detail: viewDetail };
+    content.innerHTML = `<div class="view">${(map[state.view] || viewDashboard)()}</div>`;
+    bindView();
+  }
+
+  /* ============ View: Dashboard ============ */
+  function viewDashboard() {
+    const st = Store.stats();
+    const cards = [
+      { v: st.total, l: "案件総数", c: "var(--st-lead)", ico: ic.folder },
+      { v: st.active, l: "進行中・レビュー", c: "var(--st-progress)", ico: ic.play },
+      { v: st.done, l: "完了", c: "var(--st-done)", ico: ic.check },
+      { v: st.transcripts, l: "文字起こし数", c: "var(--accent-2)", ico: ic.doc },
+    ];
+    const kpis = cards.map((k) => `
+      <div class="kpi">
+        <div class="ic" style="background:color-mix(in srgb,${k.c} 18%,transparent);color:${k.c}">${k.ico}</div>
+        <div class="val">${k.v}</div>
+        <div class="lbl">${k.l}</div>
+      </div>`).join("");
+
+    const active = Store.cases.all().filter((c) => c.status !== "done").slice(0, 4);
+    const activeHtml = active.length ? active.map(caseCard).join("") :
+      `<p style="color:var(--text-faint);font-size:14px;padding:20px;">進行中の案件はありません 🎉</p>`;
+
+    const feed = Store.activity(7).map((e) => {
+      const c = Store.cases.get(e.caseId);
+      const icon = e.type === "transcript" ? ic.doc : e.type === "feedback" ? ic.star : ic.folder;
+      const verb = e.type === "transcript" ? "文字起こしを追加" : e.type === "feedback" ? "フィードバック" : "案件を作成";
+      return `<div class="feed-item">
+        <div class="feed-ic">${icon}</div>
+        <div><div class="feed-txt"><b>${esc(c ? c.title : "（削除済み）")}</b> — ${verb}</div>
+        <div class="feed-time">${relTime(e.t)}</div></div></div>`;
+    }).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだ活動がありません</p>`;
+
+    return `
+      <div class="kpi-grid">${kpis}</div>
+      <div class="two-col">
+        <div>
+          <div class="section-head">
+            <h2>進行中の案件</h2><span class="count">${active.length} 件</span>
+            <div class="right"><button class="btn btn-sm" data-go="cases">すべて見る</button>
+            <button class="btn btn-primary btn-sm" data-new-case>${ic.plus}案件を追加</button></div>
+          </div>
+          <div class="case-grid">${activeHtml}</div>
+        </div>
+        <div>
+          <div class="section-head"><h2>進捗の平均</h2></div>
+          <div class="panel" style="margin-bottom:18px;">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">
+              <span style="font-size:34px;font-weight:800;">${st.avgProgress}%</span>
+              <span style="color:var(--text-muted);font-size:13px;">全案件の平均達成率</span>
+            </div>
+            <div class="progress"><i style="width:${st.avgProgress}%"></i></div>
+          </div>
+          <div class="section-head"><h2>最近の活動</h2></div>
+          <div class="panel">${feed}</div>
+        </div>
+      </div>`;
+  }
+
+  /* ============ View: Cases ============ */
+  function viewCases() {
+    let list = Store.cases.all();
+    if (state.filter !== "all") list = list.filter((c) => c.status === state.filter);
+    if (state.q) list = list.filter((c) => matchCase(c, state.q));
+
+    const chips = [["all", "すべて"], ...Object.entries(Store.STATUSES).map(([k, v]) => [k, v.label])]
+      .map(([k, l]) => `<div class="chip ${state.filter === k ? "active" : ""}" data-filter="${k}">${l}</div>`).join("");
+
+    const grid = list.length ? list.map(caseCard).join("") : emptyState("folder", "案件がありません", "右上のボタンから最初の案件を追加しましょう。", "案件を追加", "new-case");
+
+    return `
+      <div class="section-head" style="margin-bottom:18px;">
+        <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-new-case>${ic.plus}案件を追加</button></div>
+      </div>
+      <div class="filters">${chips}</div>
+      <div class="case-grid">${grid}</div>`;
+  }
+
+  function caseCard(c) {
+    const tx = Store.transcripts.byCase(c.id).length;
+    const fb = Store.feedbacks.byCase(c.id).length;
+    const dl = daysLeft(c.dueDate);
+    const dueTxt = c.dueDate
+      ? (dl < 0 ? `<span style="color:var(--pri-high)">${-dl}日超過</span>` : dl === 0 ? `<span style="color:var(--st-progress)">本日締切</span>` : `あと${dl}日`)
+      : "期限なし";
+    return `
+      <div class="case-card" data-open="${c.id}">
+        <div class="cc-top">
+          <div style="flex:1;min-width:0;">
+            <div class="cc-title">${esc(c.title)}</div>
+            <div class="cc-client">${esc(c.client || "—")}</div>
+          </div>
+          ${statusBadge(c.status)}
+        </div>
+        ${c.description ? `<div class="cc-desc">${esc(c.description)}</div>` : ""}
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-faint);margin-bottom:6px;">
+            <span>進捗</span><span>${c.progress || 0}%</span>
+          </div>
+          <div class="progress"><i style="width:${c.progress || 0}%"></i></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${(c.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+        <div class="cc-foot">
+          ${priBadge(c.priority)}
+          <span class="cc-meta">${ic.doc}${tx}</span>
+          <span class="cc-meta">${ic.star}${fb}</span>
+          <span class="cc-meta" style="margin-left:auto;">${ic.cal}${dueTxt}</span>
+        </div>
+      </div>`;
+  }
+
+  function matchCase(c, q) {
+    q = q.toLowerCase();
+    return [c.title, c.client, c.description, ...(c.tags || [])].some((x) => (x || "").toLowerCase().includes(q));
+  }
+
+  /* ============ View: Transcripts (global) ============ */
+  function viewTranscripts() {
+    let list = Store.transcripts.all();
+    if (state.q) list = list.filter((t) => (t.title + t.content).toLowerCase().includes(state.q.toLowerCase()));
+    if (!list.length) return emptyState("doc", "文字起こしがありません", "案件を開いて打ち合わせの記録を追加できます。", "案件リストへ", "go-cases");
+    return list.map((t) => {
+      const c = Store.cases.get(t.caseId);
+      return `<div class="item" data-open="${t.caseId}" style="cursor:pointer;">
+        <div class="item-head">
+          <span class="badge lead" style="background:var(--surface-strong);color:var(--text-muted);">${ic.folder}${esc(c ? c.title : "削除済み")}</span>
+          <span class="it-title" style="margin-left:4px;">${esc(t.title)}</span>
+          <span class="it-date">${fmtDate(t.date)}</span>
+        </div>
+        <div class="item-body clamp">${esc(t.content)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /* ============ View: Feedback (global) ============ */
+  function viewFeedback() {
+    let list = Store.feedbacks.all();
+    if (state.q) list = list.filter((f) => f.content.toLowerCase().includes(state.q.toLowerCase()));
+    if (!list.length) return emptyState("star", "フィードバックがありません", "案件を開いて気づきや要望を記録しましょう。", "案件リストへ", "go-cases");
+    return list.map((f) => {
+      const c = Store.cases.get(f.caseId);
+      const ft = FB_TYPES[f.type] || FB_TYPES.note;
+      return `<div class="item fb-item" data-open="${f.caseId}" style="cursor:pointer;border-left-color:${ft.color};">
+        <div class="item-head">
+          <div class="avatar">${esc(initials(f.author))}</div>
+          <span class="it-title">${esc(f.author || "匿名")}</span>
+          <span class="pri" style="color:${ft.color};background:color-mix(in srgb,${ft.color} 16%,transparent);">${ft.label}</span>
+          <span class="it-date">${relTime(f.createdAt)}</span>
+        </div>
+        <div class="item-body">${esc(f.content)}</div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:8px;">${ic.folder} ${esc(c ? c.title : "削除済み")}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /* ============ View: Case Detail ============ */
+  function viewDetail() {
+    const c = Store.cases.get(state.caseId);
+    if (!c) { go("cases"); return ""; }
+    const tx = Store.transcripts.byCase(c.id), fb = Store.feedbacks.byCase(c.id), ms = Store.milestones.byCase(c.id);
+    const dl = daysLeft(c.dueDate);
+
+    const tabs = [
+      ["overview", "概要", null],
+      ["transcripts", "文字起こし", tx.length],
+      ["feedback", "フィードバック", fb.length],
+      ["progress", "進捗", ms.length],
+    ].map(([k, l, n]) => `<div class="tab ${state.tab === k ? "active" : ""}" data-tab="${k}">${l}${n != null ? `<span class="n">${n}</span>` : ""}</div>`).join("");
+
+    let body = "";
+    if (state.tab === "overview") body = detailOverview(c, tx, fb, ms);
+    else if (state.tab === "transcripts") body = detailTranscripts(c, tx);
+    else if (state.tab === "feedback") body = detailFeedback(c, fb);
+    else if (state.tab === "progress") body = detailProgress(c, ms);
+
+    return `
+      <button class="btn btn-ghost back-btn" data-go="cases">${ic.back}案件リストに戻る</button>
+      <div class="detail-head">
+        <div class="dh-main">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            ${statusBadge(c.status)} ${priBadge(c.priority)}
+          </div>
+          <div class="detail-title">${esc(c.title)}</div>
+          <div class="detail-sub">
+            <span>${ic.folder}${esc(c.client || "クライアント未設定")}</span>
+            <span class="dot"></span>
+            <span>${ic.cal}${c.dueDate ? `${fmtDate(c.dueDate)}${dl != null ? `（${dl < 0 ? `${-dl}日超過` : dl === 0 ? "本日" : `あと${dl}日`}）` : ""}` : "期限なし"}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" data-edit-case="${c.id}">${ic.edit}編集</button>
+          <button class="btn btn-sm btn-danger" data-del-case="${c.id}">${ic.trash}</button>
+        </div>
+      </div>
+      <div class="tabs">${tabs}</div>
+      <div>${body}</div>`;
+  }
+
+  function detailOverview(c, tx, fb, ms) {
+    const doneMs = ms.filter((m) => m.done).length;
+    return `
+      <div class="two-col">
+        <div>
+          <div class="panel" style="margin-bottom:18px;">
+            <h2 style="font-size:15px;margin-bottom:10px;">説明</h2>
+            <p style="color:var(--text-muted);font-size:14px;white-space:pre-wrap;line-height:1.8;">${c.description ? esc(c.description) : "<span style='color:var(--text-faint)'>説明は未入力です。「編集」から追加できます。</span>"}</p>
+            ${(c.tags || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px;">${c.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+          </div>
+          <div class="section-head"><h2>最近の文字起こし</h2><span class="count">${tx.length}件</span>
+            <div class="right"><button class="btn btn-sm" data-tab="transcripts">すべて</button></div></div>
+          ${tx.slice(0, 2).map((t) => `<div class="item"><div class="item-head"><span class="it-title">${esc(t.title)}</span><span class="it-date">${fmtDate(t.date)}</span></div><div class="item-body clamp">${esc(t.content)}</div></div>`).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだありません</p>`}
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+              <span style="font-size:32px;font-weight:800;">${c.progress || 0}%</span>
+              <span style="color:var(--text-muted);font-size:13px;">達成率</span>
+            </div>
+            <div class="progress" style="margin-bottom:14px;"><i style="width:${c.progress || 0}%"></i></div>
+            <input type="range" min="0" max="100" step="5" value="${c.progress || 0}" id="progSlider" style="width:100%;accent-color:var(--accent);" />
+          </div>
+          <div class="panel">
+            <h2 style="font-size:15px;margin-bottom:14px;">サマリー</h2>
+            ${statRow(ic.doc, "文字起こし", tx.length)}
+            ${statRow(ic.star, "フィードバック", fb.length)}
+            ${statRow(ic.check, "マイルストーン", `${doneMs}/${ms.length}`)}
+          </div>
+        </div>
+      </div>`;
+  }
+  function statRow(icon, label, val) {
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-faint);width:18px;display:grid;">${icon}</span>
+      <span style="font-size:13.5px;color:var(--text-muted);">${label}</span>
+      <span style="margin-left:auto;font-weight:700;">${val}</span></div>`;
+  }
+
+  function detailTranscripts(c, tx) {
+    return `
+      <div class="section-head"><h2>文字起こし</h2><span class="count">${tx.length}件</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-tx="${c.id}">${ic.plus}記録を追加</button></div></div>
+      ${tx.length ? tx.map((t) => `
+        <div class="item">
+          <div class="item-head">
+            <span class="it-title">${esc(t.title)}</span>
+            <span class="it-date">${ic.cal}${fmtDate(t.date)}</span>
+            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-tx="${t.id}">${ic.trash}</button></div>
+          </div>
+          <div class="item-body" id="tx-${t.id}">${esc(t.content)}</div>
+        </div>`).join("") : emptyState("doc", "記録がありません", "打ち合わせの文字起こしを貼り付けて保存しましょう。", "記録を追加", "new-tx", c.id)}`;
+  }
+
+  function detailFeedback(c, fb) {
+    return `
+      <div class="section-head"><h2>フィードバック</h2><span class="count">${fb.length}件</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-fb="${c.id}">${ic.plus}追加</button></div></div>
+      ${fb.length ? fb.map((f) => {
+        const ft = FB_TYPES[f.type] || FB_TYPES.note;
+        return `<div class="item fb-item" style="border-left-color:${ft.color};">
+          <div class="item-head">
+            <div class="avatar">${esc(initials(f.author))}</div>
+            <span class="it-title">${esc(f.author || "匿名")}</span>
+            <span class="pri" style="color:${ft.color};background:color-mix(in srgb,${ft.color} 16%,transparent);">${ft.label}</span>
+            <span class="it-date">${relTime(f.createdAt)}</span>
+            <div class="item-actions"><button class="btn btn-ghost btn-sm" data-del-fb="${f.id}">${ic.trash}</button></div>
+          </div>
+          <div class="item-body">${esc(f.content)}</div>
+        </div>`;
+      }).join("") : emptyState("star", "フィードバックがありません", "気づき・要望・課題を記録して改善につなげましょう。", "追加", "new-fb", c.id)}`;
+  }
+
+  function detailProgress(c, ms) {
+    const timeline = ms.length ? `<div class="panel">${ms.map((m) => `
+      <div class="milestone ${m.done ? "done" : ""}">
+        <div class="ms-mark">
+          <div class="ms-dot" data-toggle-ms="${m.id}" style="cursor:pointer;">${m.done ? ic.check : ""}</div>
+          <div class="ms-line"></div>
+        </div>
+        <div class="ms-body">
+          <div class="ms-title" data-toggle-ms="${m.id}">${esc(m.title)}</div>
+          <div class="ms-date">${ic.cal}${fmtDate(m.date)} ${m.done ? "· 完了" : ""}
+            <span data-del-ms="${m.id}" style="cursor:pointer;color:var(--text-faint);margin-left:8px;">削除</span></div>
+        </div>
+      </div>`).join("")}</div>` : emptyState("check", "マイルストーンがありません", "タスクや節目を登録して進捗を可視化しましょう。", "マイルストーンを追加", "new-ms", c.id);
+
+    return `
+      <div class="section-head"><h2>マイルストーン</h2><span class="count">${ms.filter((m) => m.done).length}/${ms.length} 完了</span>
+        <div class="right"><button class="btn btn-primary btn-sm" data-new-ms="${c.id}">${ic.plus}追加</button></div></div>
+      ${timeline}`;
+  }
+
+  function emptyState(icon, title, desc, btnLabel, action, arg = "") {
+    return `<div class="empty">
+      <div class="em-ic">${ic[icon] || ic.folder}</div>
+      <h3>${esc(title)}</h3><p>${esc(desc)}</p>
+      <button class="btn btn-primary" data-empty-action="${action}" data-arg="${arg}">${ic.plus}${esc(btnLabel)}</button>
+    </div>`;
+  }
+
+  /* ============ Forms (modals) ============ */
+  function caseForm(existing) {
+    const c = existing || {};
+    const stOpts = Object.entries(Store.STATUSES).map(([k, v]) => `<option value="${k}" ${c.status === k ? "selected" : ""}>${v.label}</option>`).join("");
+    const prOpts = Object.entries(Store.PRIORITIES).map(([k, v]) => `<option value="${k}" ${c.priority === k ? "selected" : ""}>${v.label}</option>`).join("");
+    openModal(`
+      <div class="modal-head"><h3>${existing ? "案件を編集" : "案件を追加"}</h3>
+        <div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field"><label>案件名 *</label><input id="f-title" value="${esc(c.title || "")}" placeholder="例: ○○社 サイトリニューアル" /></div>
+        <div class="field"><label>クライアント</label><input id="f-client" value="${esc(c.client || "")}" placeholder="会社名・担当者" /></div>
+        <div class="field-row">
+          <div class="field"><label>ステータス</label><select id="f-status">${stOpts}</select></div>
+          <div class="field"><label>優先度</label><select id="f-priority"><option value="">なし</option>${prOpts}</select></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>期限</label><input type="date" id="f-due" value="${esc(c.dueDate || "")}" /></div>
+          <div class="field"><label>タグ（カンマ区切り）</label><input id="f-tags" value="${esc((c.tags || []).join(", "))}" placeholder="GAS, 経理" /></div>
+        </div>
+        <div class="field"><label>説明</label><textarea id="f-desc" placeholder="案件の概要・ゴール・背景など">${esc(c.description || "")}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close>キャンセル</button>
+        <button class="btn btn-primary" id="saveCase">${existing ? "保存" : "追加する"}</button>
+      </div>`);
+    $("#saveCase").onclick = () => {
+      const title = $("#f-title").value.trim();
+      if (!title) { $("#f-title").focus(); $("#f-title").style.borderColor = "var(--pri-high)"; return; }
+      const data = {
+        title, client: $("#f-client").value.trim(),
+        status: $("#f-status").value, priority: $("#f-priority").value,
+        dueDate: $("#f-due").value,
+        tags: $("#f-tags").value.split(",").map((s) => s.trim()).filter(Boolean),
+        description: $("#f-desc").value.trim(),
+      };
+      if (existing) { Store.cases.update(existing.id, data); toast("案件を更新しました"); }
+      else { const nc = Store.cases.add(data); state.caseId = nc.id; toast("案件を追加しました"); }
+      closeModal(); render();
+    };
+  }
+
+  function txForm(caseId) {
+    openModal(`
+      <div class="modal-head"><h3>文字起こしを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label>タイトル *</label><input id="t-title" placeholder="例: 第2回 定例MTG" /></div>
+          <div class="field"><label>日付</label><input type="date" id="t-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+        </div>
+        <div class="field"><label>本文（文字起こし）*</label>
+          <textarea class="big" id="t-content" placeholder="打ち合わせの文字起こしを貼り付け…"></textarea>
+          <div class="hint">議事録ツールや録音アプリの書き起こしをそのまま貼り付けできます。</div>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveTx">保存</button></div>`);
+    $("#saveTx").onclick = () => {
+      const title = $("#t-title").value.trim(), c = $("#t-content").value.trim();
+      if (!title || !c) { toast("タイトルと本文を入力してください"); return; }
+      Store.transcripts.add({ caseId, title, date: $("#t-date").value, content: c });
+      toast("文字起こしを保存しました"); closeModal(); render();
+    };
+  }
+
+  function fbForm(caseId) {
+    const opts = Object.entries(FB_TYPES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+    openModal(`
+      <div class="modal-head"><h3>フィードバックを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label>記入者</label><input id="b-author" placeholder="名前" value="長谷川" /></div>
+          <div class="field"><label>種別</label><select id="b-type">${opts}</select></div>
+        </div>
+        <div class="field"><label>内容 *</label><textarea id="b-content" placeholder="気づき・要望・課題など"></textarea></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveFb">保存</button></div>`);
+    $("#saveFb").onclick = () => {
+      const c = $("#b-content").value.trim();
+      if (!c) { toast("内容を入力してください"); return; }
+      Store.feedbacks.add({ caseId, author: $("#b-author").value.trim() || "匿名", type: $("#b-type").value, content: c });
+      toast("フィードバックを保存しました"); closeModal(); render();
+    };
+  }
+
+  function msForm(caseId) {
+    openModal(`
+      <div class="modal-head"><h3>マイルストーンを追加</h3><div class="x" data-close>${closeIcon()}</div></div>
+      <div class="modal-body">
+        <div class="field"><label>タイトル *</label><input id="m-title" placeholder="例: 初稿提出" /></div>
+        <div class="field"><label>予定日</label><input type="date" id="m-date" value="${new Date().toISOString().slice(0, 10)}" /></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>キャンセル</button><button class="btn btn-primary" id="saveMs">追加</button></div>`);
+    $("#saveMs").onclick = () => {
+      const t = $("#m-title").value.trim();
+      if (!t) { toast("タイトルを入力してください"); return; }
+      Store.milestones.add({ caseId, title: t, date: $("#m-date").value });
+      toast("マイルストーンを追加しました"); closeModal(); render();
+    };
+  }
+
+  function closeIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>'; }
+
+  /* ============ Event delegation ============ */
+  function bindView() {
+    // progress slider
+    const slider = $("#progSlider");
+    if (slider) {
+      slider.oninput = (e) => {
+        const v = +e.target.value;
+        Store.cases.update(state.caseId, { progress: v });
+        const p = content.querySelector(".panel .progress > i");
+        if (p) p.style.width = v + "%";
+        const lbl = content.querySelector(".panel span");
+        if (lbl) lbl.textContent = v + "%";
+      };
+    }
+  }
+
+  content.addEventListener("click", (e) => {
+    const el = (sel) => e.target.closest(sel);
+    let t;
+    if ((t = el("[data-open]"))) return go("detail", { caseId: t.dataset.open, tab: "overview" });
+    if ((t = el("[data-tab]"))) { state.tab = t.dataset.tab; return render(); }
+    if ((t = el("[data-filter]"))) { state.filter = t.dataset.filter; return render(); }
+    if ((t = el("[data-go]"))) return go(t.dataset.go);
+    if (el("[data-new-case]")) return caseForm();
+    if ((t = el("[data-edit-case]"))) return caseForm(Store.cases.get(t.dataset.editCase));
+    if ((t = el("[data-new-tx]"))) return txForm(t.dataset.newTx);
+    if ((t = el("[data-new-fb]"))) return fbForm(t.dataset.newFb);
+    if ((t = el("[data-new-ms]"))) return msForm(t.dataset.newMs);
+    if ((t = el("[data-toggle-ms]"))) { Store.milestones.toggle(t.dataset.toggleMs); return render(); }
+    if ((t = el("[data-del-case]"))) return confirmModal("案件を削除", "この案件と関連する文字起こし・FB・進捗もすべて削除されます。", () => { Store.cases.remove(t.dataset.delCase); toast("削除しました"); go("cases"); });
+    if ((t = el("[data-del-tx]"))) return confirmModal("文字起こしを削除", "この記録を削除しますか？", () => { Store.transcripts.remove(t.dataset.delTx); toast("削除しました"); render(); });
+    if ((t = el("[data-del-fb]"))) return confirmModal("フィードバックを削除", "削除しますか？", () => { Store.feedbacks.remove(t.dataset.delFb); toast("削除しました"); render(); });
+    if ((t = el("[data-del-ms]"))) { Store.milestones.remove(t.dataset.delMs); toast("削除しました"); return render(); }
+    if ((t = el("[data-empty-action]"))) {
+      const a = t.dataset.emptyAction, arg = t.dataset.arg;
+      if (a === "new-case") return caseForm();
+      if (a === "go-cases") return go("cases");
+      if (a === "new-tx") return txForm(arg);
+      if (a === "new-fb") return fbForm(arg);
+      if (a === "new-ms") return msForm(arg);
+    }
+  });
+
+  /* ============ Global wiring ============ */
+  $("#nav").addEventListener("click", (e) => { const n = e.target.closest(".nav-item"); if (n) go(n.dataset.view); });
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay" || e.target.closest("[data-close]")) closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+  $("#globalSearch").addEventListener("input", (e) => {
+    state.q = e.target.value;
+    if (["cases", "transcripts", "feedback"].includes(state.view)) render();
+    else if (state.q) go("cases");
+  });
+
+  // Theme
+  const themeToggle = $("#themeToggle"), themeLabel = $("#themeLabel");
+  const savedTheme = localStorage.getItem("cs-theme") || "dark";
+  document.documentElement.dataset.theme = savedTheme;
+  themeLabel.textContent = savedTheme === "dark" ? "🌙 ダーク" : "☀️ ライト";
+  themeToggle.onclick = () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("cs-theme", next);
+    themeLabel.textContent = next === "dark" ? "🌙 ダーク" : "☀️ ライト";
+  };
+
+  // Menu (mobile)
+  $("#menuBtn").onclick = () => $("#sidebar").classList.toggle("open");
+
+  // Export / Import
+  $("#exportBtn").onclick = () => {
+    const blob = new Blob([Store.exportJSON()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `case-studio-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); toast("データを書き出しました");
+  };
+  $("#importBtn").onclick = () => $("#importFile").click();
+  $("#importFile").onchange = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { Store.importJSON(reader.result); toast("データを読み込みました"); go("dashboard"); }
+      catch (err) { toast("読み込みに失敗: " + err.message); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  // boot
+  render();
+})();
