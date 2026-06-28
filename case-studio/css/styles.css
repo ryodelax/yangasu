@@ -333,6 +333,28 @@ body {
 .item-actions { display: flex; gap: 6px; margin-left: auto; }
 .link-more { font-size: 12.5px; color: var(--accent-2); cursor: pointer; font-weight: 600; margin-top: 8px; display: inline-block; }
 
+/* AI議事録 */
+.minutes {
+  margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  overflow: hidden;
+}
+.minutes-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--accent-2);
+}
+.minutes-head svg { width: 16px; height: 16px; }
+.minutes-head .minutes-time { font-size: 11.5px; font-weight: 500; color: var(--text-faint); }
+.minutes-head .item-actions { margin-left: auto; }
+.minutes-body { padding: 14px 16px; font-size: 13.5px; color: var(--text); line-height: 1.75; }
+.minutes-body h4 { font-size: 13.5px; font-weight: 700; margin: 14px 0 6px; color: var(--text); }
+.minutes-body h4:first-child { margin-top: 0; }
+.minutes-body ul { margin: 0 0 8px; padding-left: 20px; }
+.minutes-body li { margin: 3px 0; color: var(--text-muted); }
+.minutes-body p { margin: 0 0 8px; color: var(--text-muted); }
+.minutes-body strong { color: var(--text); font-weight: 700; }
+
 .fb-item { border-left: 3px solid var(--accent); }
 .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-grad); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; flex: none; }
 
