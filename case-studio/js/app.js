@@ -28,17 +28,19 @@
     settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 6.9 4.2l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>',
   };
 
-  /* ============ 設定（APIキー・モデル） ============ */
+  /* ============ 設定（APIキー・モデル / Google Gemini） ============ */
+  const DEFAULT_MODEL = "gemini-2.5-flash";
   const Settings = {
     getKey: () => localStorage.getItem("cs-api-key") || "",
     setKey: (k) => localStorage.setItem("cs-api-key", k),
-    getModel: () => localStorage.getItem("cs-model") || "claude-opus-4-8",
+    getModel: () => { const m = localStorage.getItem("cs-model"); return (m && m.startsWith("gemini")) ? m : DEFAULT_MODEL; },
     setModel: (m) => localStorage.setItem("cs-model", m),
   };
   const MODELS = [
-    ["claude-opus-4-8", "Claude Opus 4.8（最高性能・推奨）"],
-    ["claude-sonnet-4-6", "Claude Sonnet 4.6（速度と性能のバランス）"],
-    ["claude-haiku-4-5", "Claude Haiku 4.5（最速・低コスト）"],
+    ["gemini-2.5-flash", "Gemini 2.5 Flash（推奨・速くて高品質）"],
+    ["gemini-3.5-flash", "Gemini 3.5 Flash（最新・最高性能）"],
+    ["gemini-2.5-flash-lite", "Gemini 2.5 Flash-Lite（最速・低コスト）"],
+    ["gemini-2.5-pro", "Gemini 2.5 Pro（高品質・じっくり）"],
   ];
 
   const SYSTEM_MINUTES =
@@ -50,36 +52,44 @@
     "## 次回までの論点・宿題\n（箇条書き。なければ省略可）\n" +
     "重要: 文字起こしに書かれていない情報を創作しないこと。固有名詞や数値は原文を尊重すること。";
 
-  /* Claude API を呼んで議事録テキストを生成する */
+  /* Google Gemini API を呼んで議事録テキストを生成する */
   async function generateMinutes(text) {
     const key = Settings.getKey();
     const model = Settings.getModel();
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
-        model,
-        max_tokens: 4000,
-        system: SYSTEM_MINUTES,
-        messages: [{ role: "user", content: "次の文字起こしから議事録を作成してください。\n\n" + text }],
+        systemInstruction: { parts: [{ text: SYSTEM_MINUTES }] },
+        contents: [{ role: "user", parts: [{ text: "次の文字起こしから議事録を作成してください。\n\n" + text }] }],
+        generationConfig: { maxOutputTokens: 4000, temperature: 0.4 },
       }),
     });
     if (!res.ok) {
       let detail = "";
       try { const j = await res.json(); detail = j.error && j.error.message ? j.error.message : ""; } catch (_) {}
-      const map = { 401: "APIキーが無効です。設定を確認してください。", 429: "レート上限に達しました。少し待って再試行してください。", 529: "AIが混雑しています。再試行してください。" };
+      const map = {
+        400: "APIキーが無効か、リクエストに問題があります。設定を確認してください。",
+        403: "このAPIキーでは利用できません（権限や地域をご確認ください）。",
+        404: "モデルが見つかりません。設定でモデルを変更してください。",
+        429: "レート上限に達しました。少し待って再試行してください。",
+        500: "Gemini側でエラーが発生しました。再試行してください。",
+        503: "Geminiが混雑しています。再試行してください。",
+      };
       throw new Error(map[res.status] || `エラー(${res.status}) ${detail}`);
     }
     const data = await res.json();
-    if (data.stop_reason === "refusal") throw new Error("AIが生成を拒否しました。");
-    const block = (data.content || []).find((b) => b.type === "text");
-    if (!block || !block.text.trim()) throw new Error("議事録を生成できませんでした。");
-    return block.text.trim();
+    if (data.promptFeedback && data.promptFeedback.blockReason) throw new Error("入力が安全フィルタでブロックされました。");
+    const cand = (data.candidates || [])[0];
+    if (!cand) throw new Error("議事録を生成できませんでした。");
+    if (cand.finishReason && cand.finishReason !== "STOP" && cand.finishReason !== "MAX_TOKENS") {
+      throw new Error(`生成が中断されました（${cand.finishReason}）。`);
+    }
+    const parts = (cand.content && cand.content.parts) || [];
+    const txt = parts.map((p) => p.text || "").join("").trim();
+    if (!txt) throw new Error("議事録を生成できませんでした。");
+    return txt;
   }
 
   async function onGenerateMinutes(id, btn) {
@@ -129,11 +139,11 @@
   function settingsForm() {
     const modelOpts = MODELS.map(([k, l]) => `<option value="${k}" ${Settings.getModel() === k ? "selected" : ""}>${l}</option>`).join("");
     openModal(`
-      <div class="modal-head"><h3>AI設定（議事録の自動生成）</h3><div class="x" data-close aria-label="閉じる">${closeIcon()}</div></div>
+      <div class="modal-head"><h3>AI設定（議事録の自動生成 / Gemini）</h3><div class="x" data-close aria-label="閉じる">${closeIcon()}</div></div>
       <div class="modal-body">
-        <div class="field"><label>Anthropic APIキー</label>
-          <input id="s-key" type="password" autocomplete="off" placeholder="sk-ant-..." value="${esc(Settings.getKey())}" />
-          <div class="hint">キーは<b>このブラウザ内にのみ</b>保存され、Anthropicへ直接送信されます。共有PCでは使用しないでください。キーは <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> で取得できます。</div>
+        <div class="field"><label>Google Gemini APIキー</label>
+          <input id="s-key" type="password" autocomplete="off" placeholder="AIza..." value="${esc(Settings.getKey())}" />
+          <div class="hint">キーは<b>このブラウザ内にのみ</b>保存され、Googleへ直接送信されます。共有PCでは使用しないでください。キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料で取得できます。</div>
         </div>
         <div class="field"><label>使用モデル</label><select id="s-model">${modelOpts}</select></div>
       </div>
