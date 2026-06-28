@@ -89,12 +89,13 @@
       `<p style="color:var(--text-faint);font-size:14px;padding:20px;">進行中の案件はありません 🎉</p>`;
 
     const feed = Store.activity(7).map((e) => {
-      const c = Store.cases.get(e.caseId);
+      const c = e.caseId ? Store.cases.get(e.caseId) : null;
+      const label = e.caseId ? (c ? c.title : "（削除済み）") : "（未分類）";
       const icon = e.type === "transcript" ? ic.doc : e.type === "feedback" ? ic.star : ic.folder;
       const verb = e.type === "transcript" ? "文字起こしを追加" : e.type === "feedback" ? "フィードバック" : "案件を作成";
       return `<div class="feed-item">
         <div class="feed-ic">${icon}</div>
-        <div><div class="feed-txt"><b>${esc(c ? c.title : "（削除済み）")}</b> — ${verb}</div>
+        <div><div class="feed-txt"><b>${esc(label)}</b> — ${verb}</div>
         <div class="feed-time">${relTime(e.t)}</div></div></div>`;
     }).join("") || `<p style="color:var(--text-faint);font-size:13px;">まだ活動がありません</p>`;
 
@@ -258,19 +259,23 @@
     let list = Store.transcripts.all();
     if (state.q) list = list.filter((t) => (t.title + t.content).toLowerCase().includes(state.q.toLowerCase()));
     const head = `<div class="section-head" style="margin-bottom:18px;">
-        <div class="right" style="margin-left:auto;"><button class="btn btn-primary" data-import-tx="">${ic.upload}まとめて取り込み</button></div></div>`;
+        <span class="count">${list.length} 件</span>
+        <div class="right" style="margin-left:auto;display:flex;gap:10px;">
+          <button class="btn" data-import-tx="">${ic.upload}まとめて取り込み</button>
+          <button class="btn btn-primary" data-new-tx="">${ic.plus}記録を追加</button>
+        </div></div>`;
     if (!list.length) {
       if (state.q) return head + emptyState("search", "見つかりませんでした", `「${esc(state.q)}」に一致する文字起こしはありません。`, "検索をクリア", "clear-search");
-      const hasCases = Store.cases.all().length > 0;
-      return hasCases
-        ? head + emptyState("doc", "文字起こしがありません", "ChatGPTからコピペした文字起こしを、まとめて取り込めます。", "まとめて取り込み", "import-tx", "")
-        : emptyState("doc", "まず案件を作りましょう", "文字起こしは案件に紐づけて保存します。先に案件を1つ作成してください。", "案件を作成", "new-case");
+      return head + emptyState("doc", "文字起こしがありません", "案件がなくても登録できます。打ち合わせの記録を追加するか、まとめて取り込みましょう。案件は後から割り当てられます。", "記録を追加", "new-tx", "");
     }
     return head + list.map((t) => {
-      const c = Store.cases.get(t.caseId);
-      return `<div class="item" data-open="${t.caseId}" style="cursor:pointer;">
+      const cid = t.caseId;
+      const c = cid ? Store.cases.get(cid) : null;
+      const label = cid ? (c ? esc(c.title) : "削除済み") : "未分類";
+      const openAttr = c ? `data-open="${cid}"` : `data-edit-tx="${t.id}"`;
+      return `<div class="item" ${openAttr} style="cursor:pointer;">
         <div class="item-head">
-          <span class="badge lead" style="background:var(--surface-strong);color:var(--text-muted);">${ic.folder}${esc(c ? c.title : "削除済み")}</span>
+          <span class="badge lead" style="background:var(--surface-strong);color:var(--text-muted);">${ic.folder}${label}</span>
           <span class="it-title" style="margin-left:4px;">${esc(t.title)}</span>
           <span class="it-date">${fmtDate(t.date)}</span>
         </div>
@@ -513,9 +518,23 @@
 
   function txForm(caseId, existing) {
     const t0 = existing || {};
+    const cases = Store.cases.all();
+    // 案件詳細から「新規追加」した場合のみ、その案件に固定（hidden）。
+    // グローバル画面からの新規 or 編集時は案件セレクタを表示し、後から割り当て可能にする。
+    const fixed = caseId && !existing;
+    const current = existing ? (t0.caseId || "") : (caseId || "");
+    const caseField = fixed
+      ? `<input type="hidden" id="t-case" value="${esc(caseId)}" />`
+      : `<div class="field"><label>案件</label>
+           <select id="t-case">
+             <option value="" ${current === "" ? "selected" : ""}>案件なし（あとで割り当て）</option>
+             ${cases.map((c) => `<option value="${c.id}" ${current === c.id ? "selected" : ""}>${esc(c.title)}</option>`).join("")}
+           </select>
+           <div class="hint">未選択でも登録できます。案件は後から割り当てられます。</div></div>`;
     openModal(`
       <div class="modal-head"><h3>${existing ? "文字起こしを編集" : "文字起こしを追加"}</h3><div class="x" data-close aria-label="閉じる">${closeIcon()}</div></div>
       <div class="modal-body">
+        ${caseField}
         <div class="field-row">
           <div class="field"><label>タイトル *</label><input id="t-title" value="${esc(t0.title || "")}" placeholder="例: 第2回 定例MTG" /></div>
           <div class="field"><label>日付</label><input type="date" id="t-date" value="${esc(t0.date || new Date().toISOString().slice(0, 10))}" /></div>
@@ -529,9 +548,10 @@
     $("#saveTx").onclick = () => {
       const title = $("#t-title").value.trim(), c = $("#t-content").value.trim();
       if (!title || !c) { toast("タイトルと本文を入力してください"); return; }
-      const data = { title, date: $("#t-date").value, content: c };
+      const cid = $("#t-case").value;
+      const data = { title, date: $("#t-date").value, content: c, caseId: cid };
       if (existing) { Store.transcripts.update(existing.id, data); toast("文字起こしを更新しました"); }
-      else { Store.transcripts.add({ caseId, ...data }); toast("文字起こしを保存しました"); }
+      else { Store.transcripts.add(data); toast(cid ? "文字起こしを保存しました" : "文字起こしを保存しました（未分類）"); }
       closeModal(); render();
     };
   }
@@ -539,11 +559,14 @@
   /* ChatGPTなどから複数の文字起こしをまとめて取り込む */
   function importForm(fixedCaseId) {
     const cases = Store.cases.all();
-    if (!cases.length) { toast("先に案件を作成してください"); caseForm(); return; }
     const caseField = fixedCaseId
       ? `<input type="hidden" id="i-case" value="${fixedCaseId}" />`
-      : `<div class="field"><label>取り込み先の案件 *</label>
-           <select id="i-case">${cases.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}</select></div>`;
+      : `<div class="field"><label>取り込み先の案件</label>
+           <select id="i-case">
+             <option value="">案件なし（あとで割り当て）</option>
+             ${cases.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}
+           </select>
+           <div class="hint">未選択でも取り込めます。案件は後から各記録の編集で割り当てられます。</div></div>`;
     openModal(`
       <div class="modal-head"><h3>文字起こしをまとめて取り込み</h3><div class="x" data-close>${closeIcon()}</div></div>
       <div class="modal-body">
@@ -596,9 +619,9 @@
       });
       toast(`${chunks.length}件の文字起こしを取り込みました`);
       closeModal();
-      const c = Store.cases.get(caseId);
+      const c = caseId ? Store.cases.get(caseId) : null;
       if (c) { state.caseId = caseId; state.tab = "transcripts"; go("detail", { caseId, tab: "transcripts" }); }
-      else render();
+      else go("transcripts");
     };
   }
 
