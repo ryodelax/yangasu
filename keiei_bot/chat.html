@@ -1,0 +1,102 @@
+<style>
+  :root {
+    --bg: #14100d; --panel: #201a15; --me: #2b3a4d; --gen: #3d2317;
+    --accent: #ff6b35; --text: #f2ece4; --muted: #9c8f81;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+  header { padding: 12px 16px; background: var(--panel); border-bottom: 2px solid var(--accent); display: flex; align-items: center; gap: 10px; }
+  header .face { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  header h1 { font-size: 16px; }
+  header p { font-size: 11px; color: var(--muted); }
+  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .msg.me { align-self: flex-end; background: var(--me); border-bottom-right-radius: 4px; }
+  .msg.gen { align-self: flex-start; background: var(--gen); border: 1px solid #5a3423; border-bottom-left-radius: 4px; }
+  .msg.gen::before { content: "ゲンさん"; display: block; font-size: 10px; color: var(--accent); margin-bottom: 4px; font-weight: bold; }
+  .thinking { color: var(--muted); font-size: 12px; align-self: flex-start; padding: 4px 14px; }
+  #quick { display: flex; gap: 8px; padding: 8px 12px 0; overflow-x: auto; }
+  #quick button { flex-shrink: 0; background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  form { display: flex; gap: 8px; padding: 12px; background: var(--panel); }
+  input { flex: 1; background: var(--bg); border: 1px solid #4a3d31; border-radius: 20px; padding: 12px 16px; color: var(--text); font-size: 14px; outline: none; }
+  input:focus { border-color: var(--accent); }
+  form button { background: var(--accent); border: none; border-radius: 50%; width: 44px; height: 44px; color: #fff; font-size: 18px; cursor: pointer; }
+  form button:disabled { opacity: .4; }
+</style>
+
+<header>
+  <div class="face">🔥</div>
+  <div>
+    <h1>ゲンさん</h1>
+    <p>経営参謀｜現場・現金・現実｜目標 年商2,000万</p>
+  </div>
+</header>
+
+<div id="log">
+  <div class="msg gen">おう、来たか。台帳はワシがいつでも見とる。数字の相談でも、弱音でも、なんでも言うてみい。
+
+で、今日どう動く？</div>
+</div>
+
+<div id="quick">
+  <button onclick="quick('今日何をすればいい？数字も見せて')">今日どう動く？</button>
+  <button onclick="quick('モチベーションが下がってる。話を聞いてほしい')">モチベ下がった…</button>
+  <button onclick="quick('現在地の数字を見せて評価して')">数字を見せて</button>
+  <button onclick="quick('新しい施策を思いついたんだけど相談したい')">施策の相談</button>
+</div>
+
+<form id="f">
+  <input id="inp" placeholder="ゲンさんに相談する…" autocomplete="off">
+  <button id="send" type="submit">↑</button>
+</form>
+
+<script>
+  const log = document.getElementById('log');
+  const inp = document.getElementById('inp');
+  const send = document.getElementById('send');
+  const history = [];
+
+  function add(cls, text) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + cls;
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
+
+  function ask(text) {
+    if (!text.trim()) return;
+    add('me', text);
+    history.push({ role: 'user', text: text });
+    inp.value = '';
+    send.disabled = true;
+    const t = document.createElement('div');
+    t.className = 'thinking';
+    t.textContent = 'ゲンさんが台帳を見ながら考え中…';
+    log.appendChild(t);
+    log.scrollTop = log.scrollHeight;
+
+    google.script.run
+      .withSuccessHandler(function(reply) {
+        t.remove();
+        add('gen', reply);
+        history.push({ role: 'model', text: reply });
+        send.disabled = false;
+        inp.focus();
+      })
+      .withFailureHandler(function(err) {
+        t.remove();
+        add('gen', 'すまん、通信が切れた。もう一回頼む。(' + err.message + ')');
+        send.disabled = false;
+      })
+      .askGen(text, history.slice(0, -1));
+  }
+
+  function quick(text) { ask(text); }
+
+  document.getElementById('f').addEventListener('submit', function(e) {
+    e.preventDefault();
+    ask(inp.value);
+  });
+</script>
