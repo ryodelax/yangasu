@@ -641,6 +641,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 
 const Store = (() => {
   const KEY = "case-studio-v1";
+  const API_BASE = localStorage.getItem("cs-api-base") || "";
 
   const STATUSES = {
     lead:     { label: "リード",   cls: "lead" },
@@ -655,23 +656,47 @@ const Store = (() => {
     low:  { label: "低", cls: "low" },
   };
 
-  let db = load();
+  let db = null;
+  let isOffline = false;
 
-  function load() {
+  async function load() {
+    try {
+      if (API_BASE) {
+        const res = await fetch(`${API_BASE}/api/data`, { cache: "no-store" });
+        if (res.ok) return await res.json();
+      }
+    } catch (e) {
+      console.warn("API load failed, falling back to localStorage", e);
+      isOffline = true;
+    }
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) return JSON.parse(raw);
-    } catch (e) { console.warn("load failed", e); }
+    } catch (e) { console.warn("localStorage load failed", e); }
     return seed();
   }
 
   let onError = null;
-  function save() {
+  async function save() {
     db.updatedAt = Date.now();
+    try {
+      if (API_BASE) {
+        const res = await fetch(`${API_BASE}/api/data`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(db)
+        });
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        localStorage.setItem(KEY, JSON.stringify(db));
+        return;
+      }
+    } catch (e) {
+      console.warn("API save failed, using localStorage only", e);
+      isOffline = true;
+    }
     try {
       localStorage.setItem(KEY, JSON.stringify(db));
     } catch (e) {
-      // 容量超過などで保存できなかった場合は握りつぶさず通知する
       console.error("save failed", e);
       const quota = e && (e.name === "QuotaExceededError" || e.code === 22);
       const msg = quota
@@ -812,10 +837,15 @@ const Store = (() => {
 
   function setSaveErrorHandler(fn) { onError = fn; }
 
+  async function init() {
+    db = await load();
+    return db;
+  }
+
   return {
     STATUSES, PRIORITIES,
     cases, transcripts, feedbacks, milestones,
-    stats, activity, exportJSON, importJSON, reset, setSaveErrorHandler,
+    stats, activity, exportJSON, importJSON, reset, setSaveErrorHandler, init,
   };
 })();
 
@@ -1058,7 +1088,9 @@ const UI = (() => {
    app.js — ビュー描画とルーティング
    ============================================================ */
 
-(() => {
+(async () => {
+  await Store.init();
+
   const { $, $$, esc, fmtDate, relTime, daysLeft, initials, statusBadge, priBadge,
           openModal, closeModal, toast, confirmModal } = UI;
 
