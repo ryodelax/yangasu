@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>公図・建物図面・各階平面図</title>
+<link rel="stylesheet" href="style.css">
+<style>
+ .fg { font-family:"IPAGothic",sans-serif; font-size:9px; }
+ .fg-s { font-family:"IPAGothic",sans-serif; font-size:7.5px; }
+ .fg-b { font-family:"IPAGothic",sans-serif; font-size:10px; font-weight:bold; }
+</style>
+</head><body>
+
+<div class="sample-mark">※本書は重要事項説明書作成システムの動作検証用に作成した架空のサンプルです。実在の不動産・法人・個人とは一切関係ありません。</div>
+
+<p class="doc-title">地図に準ずる図面（公図）</p>
+<table>
+<tr><th class="lbl-s">所在</th><td style="width:34%">大阪市西区北堀江三丁目</td>
+    <th class="lbl-s">縮尺</th><td>1／500</td></tr>
+<tr><th>種類</th><td>地図に準ずる図面（旧土地台帳附属地図）</td>
+    <th>作成年月日</th><td>令和8年9月24日　大阪法務局西出張所</td></tr>
+</table>
+
+<div class="figure">
+<svg viewBox="0 0 520 330" width="520" height="330">
+  <rect x="0" y="0" width="520" height="330" fill="#fff" stroke="#999" stroke-width="0.5"/>
+  <!-- 北側道路 -->
+  <rect x="40" y="30" width="440" height="34" fill="#f2f2f2" stroke="#000" stroke-width="1"/>
+  <text class="fg" x="200" y="51">市道 北堀江第12号線（幅員11.00m）</text>
+  <!-- 西側道路(2項) -->
+  <rect x="40" y="64" width="26" height="200" fill="#fafafa" stroke="#000" stroke-width="1" stroke-dasharray="4 2"/>
+  <text class="fg-s" x="44" y="180" transform="rotate(90 44,180)">15番4（幅員3.60m・法42条2項）</text>
+  <!-- 敷地 15番3 -->
+  <rect x="66" y="64" width="300" height="200" fill="#fff" stroke="#000" stroke-width="1.6"/>
+  <text class="fg-b" x="190" y="100">15番3</text>
+  <text class="fg" x="182" y="116">宅地 842.15㎡</text>
+  <!-- 建物位置 -->
+  <rect x="100" y="132" width="230" height="100" fill="none" stroke="#666" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text class="fg-s" x="150" y="186">グランコート堀江（建物）</text>
+  <!-- 隣地 -->
+  <rect x="366" y="64" width="114" height="200" fill="#fff" stroke="#000" stroke-width="1"/>
+  <text class="fg" x="400" y="160">16番1</text>
+  <rect x="66" y="264" width="414" height="48" fill="#fff" stroke="#000" stroke-width="1"/>
+  <text class="fg" x="250" y="292">14番（建築計画あり）</text>
+  <!-- 方位 -->
+  <g>
+    <line x1="496" y1="26" x2="496" y2="8" stroke="#000" stroke-width="1.4"/>
+    <polygon points="496,4 492,13 500,13" fill="#000"/>
+    <text class="fg-b" x="490" y="40">N</text>
+  </g>
+</svg>
+</div>
+<p class="note">
+※ この図面は地図（不動産登記法第14条第1項）ではなく、地図に準ずる図面であるため、境界・形状・面積の正確性を保証するものではありません。<br>
+※ 15番4は、建物西側の通路部分であり、その全部が建築基準法第42条第2項道路（幅員3.60m）の区域に含まれます。
+</p>
+
+<div class="pb"></div>
+
+<p class="doc-title">建物図面</p>
+<table>
+<tr><th class="lbl-s">所在</th><td style="width:38%">大阪市西区北堀江三丁目15番地3、15番地4</td>
+    <th class="lbl-s">縮尺</th><td>1／250</td></tr>
+<tr><th>建物の名称</th><td>グランコート堀江</td>
+    <th>作成</th><td>昭和54年3月　土地家屋調査士　北堀　義行</td></tr>
+</table>
+
+<div class="figure">
+<svg viewBox="0 0 520 300" width="520" height="300">
+  <rect x="0" y="0" width="520" height="300" fill="#fff" stroke="#999" stroke-width="0.5"/>
+  <!-- 敷地境界 -->
+  <rect x="70" y="50" width="360" height="200" fill="none" stroke="#000" stroke-width="1.8"/>
+  <!-- 建物 -->
+  <rect x="120" y="105" width="260" height="105" fill="#f7f7f7" stroke="#000" stroke-width="1.4"/>
+  <text class="fg-b" x="200" y="150">グランコート堀江</text>
+  <text class="fg" x="176" y="168">鉄骨鉄筋コンクリート造陸屋根10階建</text>
+  <text class="fg" x="208" y="184">1階床面積 512.40㎡</text>
+  <!-- 寸法 -->
+  <line x1="70" y1="40" x2="430" y2="40" stroke="#000" stroke-width="0.7"/>
+  <text class="fg" x="235" y="34">36.70m</text>
+  <line x1="58" y1="50" x2="58" y2="250" stroke="#000" stroke-width="0.7"/>
+  <text class="fg" x="22" y="154">22.95m</text>
+  <line x1="120" y1="95" x2="380" y2="95" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="240" y="90">34.16m</text>
+  <line x1="110" y1="105" x2="110" y2="210" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="86" y="160">15.00m</text>
+  <!-- 離れ -->
+  <line x1="70" y1="270" x2="120" y2="270" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="70" y="284">1.30m</text>
+  <line x1="380" y1="270" x2="430" y2="270" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="382" y="284">1.24m</text>
+  <text class="fg-s" x="140" y="284">北側離れ 4.50m　／　南側離れ 3.45m</text>
+  <!-- 道路 -->
+  <text class="fg" x="180" y="20">北側　市道 北堀江第12号線（幅員11.00m）</text>
+  <text class="fg-s" x="6" y="80">西側</text>
+  <text class="fg-s" x="6" y="94">3.60m</text>
+  <text class="fg-s" x="6" y="108">2項道路</text>
+</svg>
+</div>
+
+<div class="pb"></div>
+
+<p class="doc-title">各階平面図（5階）</p>
+<table>
+<tr><th class="lbl-s">家屋番号</th><td style="width:38%">北堀江三丁目　15番3の506</td>
+    <th class="lbl-s">縮尺</th><td>1／200</td></tr>
+<tr><th>床面積</th><td>5階部分　62.35㎡（登記面積・内法）</td>
+    <th>壁芯面積</th><td>65.12㎡</td></tr>
+</table>
+
+<div class="figure">
+<svg viewBox="0 0 520 300" width="520" height="300">
+  <rect x="0" y="0" width="520" height="300" fill="#fff" stroke="#999" stroke-width="0.5"/>
+  <!-- フロア全体 -->
+  <rect x="40" y="40" width="440" height="200" fill="none" stroke="#000" stroke-width="1.6"/>
+  <!-- 共用廊下 -->
+  <rect x="40" y="40" width="440" height="34" fill="#efefef" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="220" y="62">共用廊下</text>
+  <!-- 住戸（5階は8戸） -->
+  <rect x="40" y="74" width="55" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="58" y="160">501</text>
+  <rect x="95" y="74" width="55" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="113" y="160">502</text>
+  <rect x="150" y="74" width="55" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="168" y="160">503</text>
+  <rect x="205" y="74" width="55" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="223" y="160">504</text>
+  <rect x="260" y="74" width="55" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="278" y="160">505</text>
+  <rect x="315" y="74" width="62" height="166" fill="#e6eefa" stroke="#000" stroke-width="1.8"/>
+  <text class="fg-b" x="337" y="152">506</text>
+  <text class="fg-s" x="320" y="170">62.35㎡</text>
+  <rect x="377" y="74" width="52" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="392" y="160">507</text>
+  <rect x="429" y="74" width="51" height="166" fill="#fff" stroke="#000" stroke-width="0.9"/>
+  <text class="fg" x="443" y="160">508</text>
+  <!-- バルコニー -->
+  <rect x="40" y="240" width="440" height="24" fill="#f7f7f7" stroke="#000" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text class="fg-s" x="210" y="256">バルコニー（専用使用部分）</text>
+  <!-- EV -->
+  <rect x="186" y="10" width="60" height="30" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="196" y="30">EV・階段</text>
+  <text class="fg-s" x="330" y="284">※506号室のバルコニー面積 8.40㎡（専用使用権あり・共用部分）</text>
+</svg>
+</div>
+
+<table>
+<tr><th class="c" style="width:16%">階</th><th class="c" style="width:20%">床面積（㎡）</th>
+    <th class="c" style="width:16%">住戸数</th><th>用途</th></tr>
+<tr><td class="c">1階</td><td class="r">512.40</td><td class="c">0</td>
+    <td>エントランスホール、管理員室、集会室（規約共用部分）、機械式駐車場、ごみ置場</td></tr>
+<tr><td class="c">2階～7階</td><td class="r">各 628.15</td><td class="c">各8戸（計48戸）</td><td>住戸</td></tr>
+<tr><td class="c">8階～9階</td><td class="r">各 541.80</td><td class="c">各7戸（計14戸）</td><td>住戸</td></tr>
+<tr><td class="c">10階</td><td class="r">380.25</td><td class="c">6戸</td><td>住戸、屋上塔屋（高置水槽）</td></tr>
+<tr><th class="c">合計</th><th class="r">5,117.00</th><th class="c">68戸</th><td>建築面積 512.40㎡／敷地面積（登記）1,050.72㎡</td></tr>
+</table>
+
+<p class="note">
+※ 登記床面積は内法（壁の内側）で算出、販売図面等の専有面積は壁芯で算出しているため相違があります。<br>
+※ バルコニー・玄関ポーチ・パイプスペースは共用部分であり、専有面積には含まれません。
+</p>
+
+</body></html>

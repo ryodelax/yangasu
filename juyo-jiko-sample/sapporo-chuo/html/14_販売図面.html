@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>販売図面</title>
+<link rel="stylesheet" href="style.css">
+<style>
+ @page { size: A4; margin: 10mm; }
+ .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2.5pt solid #1b5e3a; padding-bottom:2mm; margin-bottom:3mm;}
+ .price { font-size: 26pt; font-weight:bold; color:#c00; }
+ .catch { font-size:13pt; font-weight:bold; color:#1b5e3a; margin:2mm 0; }
+ .cols { display:flex; gap:4mm; }
+ .col-l { width:52%; } .col-r { width:48%; }
+ .fg{font-family:"IPAGothic",sans-serif;font-size:9px;}
+ .fg-b{font-family:"IPAGothic",sans-serif;font-size:11px;font-weight:bold;}
+ .fg-s{font-family:"IPAGothic",sans-serif;font-size:7.5px;}
+ table.spec th { width:26%; font-size:8.4pt; }
+ table.spec td { font-size:8.4pt; }
+ .bullets { font-size:9pt; line-height:1.7; }
+ .co { border:1pt solid #1b5e3a; padding:2mm; margin-top:3mm; font-size:8.4pt; }
+</style>
+</head><body>
+
+<div class="sample-mark">※本書は重要事項説明書作成システムの動作検証用に作成した架空のサンプルです。実在の不動産・法人・個人とは一切関係ありません。</div>
+
+<div class="head">
+  <div>
+    <div style="font-size:11pt;">リノベーション済中古マンション</div>
+    <div style="font-size:15pt;font-weight:bold;">ザ・ステージ伏見　503号室</div>
+    <div style="font-size:9.5pt;">札幌市営地下鉄南北線「幌平橋」駅　徒歩7分／市電「静修学園前」停　徒歩4分</div>
+  </div>
+  <div style="text-align:right;">
+    <div class="price">3,480万円</div>
+    <div style="font-size:8pt;">（うち建物価格18,000,000円・消費税1,636,363円を含む）</div>
+  </div>
+</div>
+
+<div class="catch">■ 2026年9月フルリノベーション完成／瑕疵保険5年付・内窓新設で冬も暖かい3LDK ■</div>
+
+<div class="cols">
+<div class="col-l">
+
+<div class="figure" style="padding:1mm;">
+<svg viewBox="0 0 300 290" width="300" height="290">
+  <rect x="0" y="0" width="300" height="290" fill="#fff"/>
+  <rect x="18" y="18" width="264" height="222" fill="none" stroke="#000" stroke-width="1.6"/>
+  <!-- 玄関・廊下 -->
+  <rect x="18" y="18" width="58" height="50" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg" x="30" y="48">玄関</text>
+  <rect x="76" y="18" width="52" height="50" fill="#f6f6f6" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="86" y="48">ホール</text>
+  <!-- 水回り -->
+  <rect x="18" y="68" width="42" height="46" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="24" y="95">浴室</text>
+  <rect x="60" y="68" width="38" height="46" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="64" y="88">洗面</text><text class="fg-s" x="64" y="100">脱衣</text>
+  <rect x="98" y="68" width="30" height="46" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="102" y="95">WC</text>
+  <!-- 洋室1 -->
+  <rect x="128" y="18" width="154" height="96" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="184" y="58">洋室</text>
+  <text class="fg" x="184" y="74">6.2帖</text>
+  <!-- LDK -->
+  <rect x="18" y="114" width="166" height="126" fill="#fffaf0" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="74" y="172">LDK</text>
+  <text class="fg" x="72" y="190">17.2帖</text>
+  <rect x="18" y="114" width="52" height="30" fill="#fff" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="24" y="133">キッチン</text>
+  <!-- 洋室2/3 -->
+  <rect x="184" y="114" width="98" height="64" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="212" y="142">洋室</text>
+  <text class="fg" x="212" y="158">5.0帖</text>
+  <rect x="184" y="178" width="98" height="62" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="212" y="206">洋室</text>
+  <text class="fg" x="212" y="222">5.4帖</text>
+  <!-- バルコニー -->
+  <rect x="18" y="240" width="264" height="26" fill="#f2f2f2" stroke="#000" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text class="fg" x="94" y="257">バルコニー　12.60㎡</text>
+  <line x1="290" y1="278" x2="290" y2="258" stroke="#000" stroke-width="1.2"/>
+  <polygon points="290,254 286,263 294,263" fill="#000"/>
+  <text class="fg" x="285" y="286">N</text>
+  <text class="fg-s" x="20" y="282">専有面積 78.92㎡（壁芯81.36㎡）／3LDK／5階部分／東南角部屋</text>
+</svg>
+</div>
+
+<div class="bullets">
+■ <span class="b">2026年9月完成のフルリノベーション</span>。間取り変更（4LDK→3LDK）でLDK17.2帖を実現。
+キッチン・浴室・洗面・トイレ・給湯暖房機をすべて新品に交換済み。<br>
+■ <span class="b">全開口部に内窓（二重サッシ）を新設</span>。既存の複層ガラス＋樹脂サッシと合わせ、
+結露を抑え暖房効率が大きく向上しています。<br>
+■ <span class="b">専有部分の給排水管・暖房配管を全面更新済み</span>。配管トラブルの心配がありません。<br>
+■ <span class="b">既存住宅売買瑕疵保険を5年付保</span>（保険金額1,000万円）。
+売主の契約不適合責任も引渡しから2年間。<br>
+■ <span class="b">設計・建設 両方の住宅性能評価書を取得</span>した物件です（断熱等性能等級4／劣化対策等級3）。<br>
+■ <span class="b">駐車場の使用権を承継できます</span>（No.14・月額12,000円）。空き待ちの必要がありません。<br>
+■ <span class="b">ペット飼育可</span>（犬猫合計2匹まで・体高50cm以下／登録制）。<br>
+■ 藻岩山麓の緑豊かな住環境。札幌市立幌南小学校 徒歩8分。
+</div>
+
+<div class="co">
+<span class="b">【重要なお知らせ】</span><br>
+・<span class="b">売主は宅地建物取引業者です。建物価格に消費税が課税されます</span>（1,636,363円を含む）。<br>
+・<span class="b">修繕積立金は2029年4月に11,500円、2034年4月に15,800円へ段階的に増額されます</span>（総会決議済）。<br>
+・管理費は理事会で改定を検討中です（額・時期は未定）。<br>
+・<span class="b">敷地の南西部（約180㎡）が土砂災害警戒区域に指定されています</span>（建物は区域外）。<br>
+・<span class="b">藻岩山麓風致地区内</span>のため、外観に変更を生じる工事には札幌市長の許可が必要な場合があります。<br>
+・<span class="b">民泊（住宅宿泊事業）はできません</span>（管理規約で禁止）。<br>
+・開放型石油ストーブ・薪ストーブは使用できません（暖房はガス温水セントラルヒーティング）。
+</div>
+
+</div>
+<div class="col-r">
+
+<table class="spec">
+<tr><th>物件名</th><td>ザ・ステージ伏見　503号室</td></tr>
+<tr><th>所在地</th><td>札幌市中央区伏見二丁目3番5号<br>（地番：伏見二丁目3番12）</td></tr>
+<tr><th>交通</th><td>札幌市営地下鉄南北線「幌平橋」駅 徒歩7分<br>
+市電「静修学園前」停 徒歩4分</td></tr>
+<tr><th>価格</th><td class="b">3,480万円（税込）<br>
+<span style="font-size:7.6pt;">土地16,800,000円／建物18,000,000円<br>（うち消費税1,636,363円）</span></td></tr>
+<tr><th>間取り</th><td>3LDK（洋6.2／洋5.0／洋5.4／LDK17.2）</td></tr>
+<tr><th>専有面積</th><td>78.92㎡（登記・内法）／81.36㎡（壁芯）</td></tr>
+<tr><th>バルコニー面積</th><td>12.60㎡（専用使用権付・南向き）</td></tr>
+<tr><th>所在階／構造・規模</th><td>5階／鉄筋コンクリート造 地上5階建</td></tr>
+<tr><th>築年月</th><td class="b">2005年（平成17年）11月　※新耐震基準</td></tr>
+<tr><th>リフォーム</th><td class="b">2026年9月 全面リノベーション完成</td></tr>
+<tr><th>総戸数</th><td>30戸</td></tr>
+<tr><th>土地権利</th><td class="b">所有権（敷地権 10万分の3010）</td></tr>
+<tr><th>用途地域</th><td>第一種住居地域</td></tr>
+<tr><th>その他法令制限</th><td class="b">藻岩山麓風致地区（第3種）、準防火地域、
+第2種高度地区、日影規制、宅地造成等工事規制区域、土砂災害警戒区域（敷地の一部）</td></tr>
+<tr><th>管理形態</th><td>全部委託／管理員 通勤（月水金 9:00～14:00）</td></tr>
+<tr><th>管理会社</th><td>北海道ハウスメンテナンス株式会社</td></tr>
+<tr><th>管理費</th><td class="b">月額 14,500円<br>
+<span style="font-size:7.6pt;">（ロードヒーティング電気代・除排雪費を含む）</span></td></tr>
+<tr><th>修繕積立金</th><td class="b">月額 8,200円<br>
+<span style="color:#c00;">※2029年4月 11,500円／2034年4月 15,800円<br>（段階増額・総会決議済）</span></td></tr>
+<tr><th>修繕積立金総額</th><td>38,450,000円（2026年3月末現在）／借入金なし</td></tr>
+<tr><th>管理費等の滞納</th><td class="b">なし（組合全体も0円）</td></tr>
+<tr><th>駐車場</th><td class="b">平面22台／空き5台／月額12,000円（屋根付15,000円）<br>
+<span style="color:#1b5e3a;">※503号室はNo.14を使用中・使用権の承継可</span></td></tr>
+<tr><th>自転車置場／トランクルーム</th><td class="b">いずれも無料<br>
+（自転車 屋内60台・空18台／トランクルーム 各戸1つ）<br>
+※バイク置場はありません</td></tr>
+<tr><th>設備</th><td>都市ガス13A（北海道ガス）、公営水道（直結増圧）、
+本下水（分流式）、ガス温水セントラルヒーティング、
+オートロック、宅配ボックス、防犯カメラ、エレベーター1基、
+<span class="b">非常用発電機（72時間）</span>、ロードヒーティング、集会室、風除室</td></tr>
+<tr><th>電気・ネット</th><td class="b">一括受電・一括加入なし（自由に選択可）</td></tr>
+<tr><th>ペット</th><td class="b" style="color:#1b5e3a;">可（犬猫合計2匹まで・体高50cm以下／登録制）</td></tr>
+<tr><th>住宅宿泊事業（民泊）</th><td class="b" style="color:#c00;">不可</td></tr>
+<tr><th>現況</th><td class="b">空室</td></tr>
+<tr><th>引渡</th><td class="b">2026年11月30日（即引渡可）</td></tr>
+<tr><th>取引態様</th><td class="b">売主</td></tr>
+<tr><th>備考</th><td>既存住宅売買瑕疵保険 付保済（5年・1,000万円）。
+建物状況調査 実施済（2026年6月・9月）。
+設計・建設 住宅性能評価書あり。
+現況と図面の内容が異なる場合は現況を優先します。</td></tr>
+</table>
+
+</div>
+</div>
+
+<div class="co" style="margin-top:4mm;">
+<div style="display:flex;justify-content:space-between;">
+<div>
+<span class="b" style="font-size:11pt;">株式会社ノースリノベ</span>　<span style="font-size:8pt;">（売主）</span><br>
+〒060-0061　札幌市中央区南一条西六丁目12番地3<br>
+TEL 011-241-〇〇〇〇　／　FAX 011-241-〇〇〇〇<br>
+北海道知事 石狩(3)第9218号　／　(公社)全日本不動産協会 会員<br>
+宅地建物取引士　豊平　美紀（北海道知事 第〇〇〇〇〇号）
+</div>
+<div style="text-align:right;">
+物件番号　NR-2026-0931<br>
+登録日　2026年9月26日<br>
+図面作成日　2026年10月8日<br>
+<span class="b">仲介手数料　不要（売主直販）</span>
+</div>
+</div>
+</div>
+
+</body></html>

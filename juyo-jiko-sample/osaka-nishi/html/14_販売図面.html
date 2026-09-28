@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>販売図面</title>
+<link rel="stylesheet" href="style.css">
+<style>
+ @page { size: A4; margin: 10mm; }
+ .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2.5pt solid #1b4b8f; padding-bottom:2mm; margin-bottom:3mm;}
+ .price { font-size: 26pt; font-weight:bold; color:#c00; }
+ .catch { font-size:13pt; font-weight:bold; color:#1b4b8f; margin:2mm 0; }
+ .cols { display:flex; gap:4mm; }
+ .col-l { width:52%; } .col-r { width:48%; }
+ .fg{font-family:"IPAGothic",sans-serif;font-size:9px;}
+ .fg-b{font-family:"IPAGothic",sans-serif;font-size:11px;font-weight:bold;}
+ .fg-s{font-family:"IPAGothic",sans-serif;font-size:7.5px;}
+ table.spec th { width:26%; font-size:8.4pt; }
+ table.spec td { font-size:8.4pt; }
+ .bullets { font-size:9pt; line-height:1.7; }
+ .co { border:1pt solid #1b4b8f; padding:2mm; margin-top:3mm; font-size:8.4pt; }
+</style>
+</head><body>
+
+<div class="sample-mark">※本書は重要事項説明書作成システムの動作検証用に作成した架空のサンプルです。実在の不動産・法人・個人とは一切関係ありません。</div>
+
+<div class="head">
+  <div>
+    <div style="font-size:11pt;">中古マンション</div>
+    <div style="font-size:15pt;font-weight:bold;">グランコート堀江　506号室</div>
+    <div style="font-size:9.5pt;">Osaka Metro 長堀鶴見緑地線・千日前線「西長堀」駅　徒歩4分</div>
+  </div>
+  <div class="price">2,780万円</div>
+</div>
+
+<div class="catch">■ 耐震改修済・管理計画認定マンション／西長堀駅徒歩4分の3LDK ■</div>
+
+<div class="cols">
+<div class="col-l">
+
+<div class="figure" style="padding:1mm;">
+<svg viewBox="0 0 300 280" width="300" height="280">
+  <rect x="0" y="0" width="300" height="280" fill="#fff"/>
+  <!-- 全体枠 -->
+  <rect x="20" y="20" width="260" height="215" fill="none" stroke="#000" stroke-width="1.6"/>
+  <!-- 玄関・廊下 -->
+  <rect x="20" y="20" width="60" height="55" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg" x="32" y="52">玄関</text>
+  <rect x="80" y="20" width="60" height="55" fill="#f6f6f6" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="94" y="52">ホール</text>
+  <!-- 水回り -->
+  <rect x="20" y="75" width="42" height="45" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="26" y="101">浴室</text>
+  <rect x="62" y="75" width="40" height="45" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="66" y="95">洗面</text>
+  <text class="fg-s" x="66" y="108">脱衣</text>
+  <rect x="102" y="75" width="38" height="45" fill="#eef5fb" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-s" x="112" y="101">トイレ</text>
+  <!-- 洋室1 -->
+  <rect x="140" y="20" width="140" height="100" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="188" y="66">洋室</text>
+  <text class="fg" x="188" y="82">5.2帖</text>
+  <!-- LDK -->
+  <rect x="20" y="120" width="170" height="115" fill="#fffaf0" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="78" y="172">LDK</text>
+  <text class="fg" x="76" y="190">14.5帖</text>
+  <rect x="20" y="120" width="52" height="30" fill="#fff" stroke="#000" stroke-width="0.6"/>
+  <text class="fg-s" x="26" y="139">キッチン</text>
+  <!-- 洋室2 -->
+  <rect x="190" y="120" width="90" height="115" fill="#fff" stroke="#000" stroke-width="0.8"/>
+  <text class="fg-b" x="216" y="170">洋室</text>
+  <text class="fg" x="216" y="186">6.0帖</text>
+  <!-- バルコニー -->
+  <rect x="20" y="235" width="260" height="26" fill="#f2f2f2" stroke="#000" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text class="fg" x="100" y="252">バルコニー　8.40㎡</text>
+  <!-- 方位 -->
+  <line x1="288" y1="270" x2="288" y2="252" stroke="#000" stroke-width="1.2"/>
+  <polygon points="288,248 284,257 292,257" fill="#000"/>
+  <text class="fg" x="283" y="278">N</text>
+  <text class="fg-s" x="22" y="276">専有面積 62.35㎡（壁芯65.12㎡）／3LDK／5階部分／南向き</text>
+</svg>
+</div>
+
+<div class="bullets">
+■ <span class="b">2018年に耐震改修工事を実施済！</span>耐震基準適合証明書を取得しており、
+住宅ローン控除の対象となります（適用条件は税務署にご確認ください）。<br>
+■ <span class="b">大阪市の管理計画認定を取得（2025年2月）</span>。管理状態が行政に認められたマンションです。<br>
+■ 2023年に第3回大規模修繕工事（外壁・屋上防水・シーリング）を実施済み。<br>
+■ 2021年にオートロック・宅配ボックス・防犯カメラを設置。インターネットは全戸一括加入で
+　<span class="b">利用料は管理費に含まれます</span>。<br>
+■ 南向きバルコニー、日当たり良好。2016年に水回り設備を一式交換済み。<br>
+■ 「西長堀」駅徒歩4分、「四ツ橋」駅徒歩9分の2駅2路線利用可。<br>
+■ 大阪市立堀江小学校 徒歩6分／大阪市立西中学校 徒歩11分。
+</div>
+
+<div class="co">
+<span class="b">【重要なお知らせ】</span><br>
+・<span class="b">ペットの飼育はできません</span>（管理規約により原則禁止。経過措置の適用なし）。<br>
+・<span class="b">電気は高圧一括受電（2036年3月まで）</span>のため、電力会社を個別に選べません。<br>
+・<span class="b">駐車場の使用権は承継されません</span>。ご希望の場合は新規申込みとなります（空き3台）。<br>
+・<span class="b">2027年4月から修繕積立金が15,400円に改定されます</span>（総会決議済）。<br>
+・本物件は敷地権化されていないため、土地の共有持分の移転登記が別途必要です。
+</div>
+
+</div>
+<div class="col-r">
+
+<table class="spec">
+<tr><th>物件名</th><td>グランコート堀江　506号室</td></tr>
+<tr><th>所在地</th><td>大阪市西区北堀江三丁目15番8号<br>（地番：北堀江三丁目15番3、15番4）</td></tr>
+<tr><th>交通</th><td>Osaka Metro 長堀鶴見緑地線・千日前線<br>「西長堀」駅 徒歩4分<br>
+Osaka Metro 四つ橋線「四ツ橋」駅 徒歩9分</td></tr>
+<tr><th>価格</th><td class="b">2,780万円</td></tr>
+<tr><th>間取り</th><td>3LDK（洋5.2／洋6.0／LDK14.5）</td></tr>
+<tr><th>専有面積</th><td>62.35㎡（登記・内法）／65.12㎡（壁芯）</td></tr>
+<tr><th>バルコニー面積</th><td>8.40㎡（専用使用権付・南向き）</td></tr>
+<tr><th>所在階／構造・規模</th><td>5階／鉄骨鉄筋コンクリート造 地上10階建</td></tr>
+<tr><th>築年月</th><td class="b">1979年（昭和54年）3月　※旧耐震・耐震改修済</td></tr>
+<tr><th>総戸数</th><td>68戸</td></tr>
+<tr><th>土地権利</th><td class="b">所有権（共有持分 10万分の1250）<br>※敷地権の登記なし（非敷地権）</td></tr>
+<tr><th>用途地域</th><td>商業地域</td></tr>
+<tr><th>その他法令制限</th><td>防火地域、駐車場整備地区、北堀江地区地区計画、
+景観計画区域、埋蔵文化財包蔵地、津波災害警戒区域</td></tr>
+<tr><th>管理形態</th><td class="b">一部委託（出納・会計は管理組合が自主管理）</td></tr>
+<tr><th>管理会社</th><td>浪速コミュニティサービス株式会社</td></tr>
+<tr><th>管理員</th><td>日勤（月～金 9:00～15:00）</td></tr>
+<tr><th>管理費</th><td class="b">月額 12,800円（インターネット利用料込）</td></tr>
+<tr><th>修繕積立金</th><td class="b">月額 9,600円<br>
+<span style="color:#c00">※2027年4月より 15,400円に改定予定</span></td></tr>
+<tr><th>修繕積立金総額</th><td>61,480,000円（2026年3月末現在）</td></tr>
+<tr><th>駐車場</th><td>機械式24台／空き3台／月額22,000円<br>
+<span style="color:#c00">※使用権の承継不可・要新規申込</span><br>
+車両制限：長5,000×幅1,850×高1,550mm・2t以下</td></tr>
+<tr><th>バイク置場／駐輪場</th><td>月額2,000円（空2台）／月額300円（空14台）</td></tr>
+<tr><th>設備</th><td>都市ガス13A、公営水道（受水槽方式）、
+本下水（合流式）、オートロック、宅配ボックス、
+防犯カメラ、エレベーター2基、集会室</td></tr>
+<tr><th>ペット</th><td class="b" style="color:#c00">不可</td></tr>
+<tr><th>住宅宿泊事業（民泊）</th><td>条件付き可（理事会承認・家主居住型・年90日以内）<br>※特区民泊は不可</td></tr>
+<tr><th>現況</th><td class="b">居住中</td></tr>
+<tr><th>引渡</th><td>2026年12月15日（相談可）</td></tr>
+<tr><th>取引態様</th><td class="b">媒介（仲介）</td></tr>
+<tr><th>備考</th><td>2026年8月に建物状況調査（インスペクション）実施済。
+既存住宅売買瑕疵保険の付保可能見込み。<br>
+現況と図面の内容が異なる場合は現況を優先します。</td></tr>
+</table>
+
+</div>
+</div>
+
+<div class="co" style="margin-top:4mm;">
+<div style="display:flex;justify-content:space-between;">
+<div>
+<span class="b" style="font-size:11pt;">株式会社ほりえ不動産</span><br>
+〒550-0014　大阪市西区北堀江一丁目8番5号 堀江ビル2F<br>
+TEL 06-6532-〇〇〇〇　／　FAX 06-6532-〇〇〇〇<br>
+大阪府知事(2)第58712号　／　(公社)全日本不動産協会 会員<br>
+宅地建物取引士　南　律子（大阪府 第〇〇〇〇〇号）
+</div>
+<div style="text-align:right;">
+物件番号　HR-2026-0912<br>
+登録日　2026年9月12日<br>
+キーBOX　7418<br>
+図面作成日　2026年9月26日
+</div>
+</div>
+</div>
+
+</body></html>
