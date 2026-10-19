@@ -1,0 +1,61 @@
+{
+  "_note": "2026-10-19 調査(公開情報)からの転記。郵便番号は自社情報に欄が無いため入れない。取引士の氏名・登録番号・登録都道府県は未確認のため空欄(他社の宅建士を書面に出さない)。業務に従事する事務所は主たる事務所を仮に入れる(要確認)。営業保証金の供託所は保証協会加入のため空欄。",
+  "common": {
+    "kyotakusho_kubun": "宅地建物取引業保証協会の社員",
+    "hoshou_kyokai_name": "公益社団法人 不動産保証協会",
+    "hoshou_kyokai_address": "東京都千代田区紀尾井町3番30号 全日会館",
+    "hoshou_kyokai_honbu_name": "公益社団法人 不動産保証協会 神奈川県本部",
+    "hoshou_kyokai_honbu_address": "神奈川県横浜市西区北幸1丁目11番15号 横浜STビル6階",
+    "bensai_kyotakusho_name": "東京法務局",
+    "bensai_kyotakusho_address": "東京都千代田区九段南1丁目1番15号 九段第2合同庁舎"
+  },
+  "companies": [
+    {
+      "name": "株式会社オリーブ",
+      "settings": {
+        "gyousha_name": "株式会社オリーブ",
+        "gyousha_daihyou": "白鳥 力",
+        "gyousha_menkyo_kenja": "神奈川県知事",
+        "gyousha_menkyo_koushin": "2",
+        "gyousha_menkyo_no": "30942",
+        "gyousha_address": "神奈川県横浜市南区井土ケ谷中町161",
+        "gyousha_address_2": "KSビル501",
+        "gyousha_tel": "045-308-7338",
+        "torihikishi_jimusho_name": "株式会社オリーブ",
+        "torihikishi_jimusho_address": "神奈川県横浜市南区井土ケ谷中町161",
+        "torihikishi_jimusho_address_2": "KSビル501",
+        "torihikishi_jimusho_tel": "045-308-7338"
+      }
+    },
+    {
+      "name": "合同会社UIエステート",
+      "settings": {
+        "gyousha_name": "合同会社UIエステート",
+        "gyousha_daihyou": "荒井 隼也",
+        "gyousha_menkyo_kenja": "神奈川県知事",
+        "gyousha_menkyo_koushin": "1",
+        "gyousha_menkyo_no": "32383",
+        "gyousha_address": "神奈川県横浜市港南区野庭町1716-3",
+        "gyousha_tel": "045-367-8145",
+        "torihikishi_jimusho_name": "合同会社UIエステート",
+        "torihikishi_jimusho_address": "神奈川県横浜市港南区野庭町1716-3",
+        "torihikishi_jimusho_tel": "045-367-8145"
+      }
+    },
+    {
+      "name": "小俣靴下株式会社",
+      "settings": {
+        "gyousha_name": "小俣靴下株式会社",
+        "gyousha_daihyou": "小俣 富樹",
+        "gyousha_menkyo_kenja": "神奈川県知事",
+        "gyousha_menkyo_koushin": "2",
+        "gyousha_menkyo_no": "30147",
+        "gyousha_address": "神奈川県横浜市磯子区丸山2丁目14-3",
+        "gyousha_tel": "045-751-4845",
+        "torihikishi_jimusho_name": "小俣靴下株式会社",
+        "torihikishi_jimusho_address": "神奈川県横浜市磯子区丸山2丁目14-3",
+        "torihikishi_jimusho_tel": "045-751-4845"
+      }
+    }
+  ]
+}
