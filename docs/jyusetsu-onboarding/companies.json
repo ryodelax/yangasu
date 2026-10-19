@@ -1,5 +1,5 @@
 {
-  "_note": "2026-10-19 調査(公開情報)からの転記。郵便番号は自社情報に欄が無いため入れない。取引士の氏名・登録番号・登録都道府県は未確認のため空欄(他社の宅建士を書面に出さない)。業務に従事する事務所は主たる事務所を仮に入れる(要確認)。営業保証金の供託所は保証協会加入のため空欄。",
+  "_note": "2026-10-19 調査(公開情報)からの転記。郵便番号は自社情報に欄が無いため入れない。取引士の氏名は代表者(2026-10-20 長谷川さん決定)。取引士の登録番号・登録都道府県は調査で未確認のため空欄(宅建業の免許番号とは別の番号)。業務に従事する事務所は主たる事務所。営業保証金の供託所は保証協会加入のため空欄。",
   "common": {
     "kyotakusho_kubun": "宅地建物取引業保証協会の社員",
     "hoshou_kyokai_name": "公益社団法人 不動産保証協会",
@@ -24,7 +24,8 @@
         "torihikishi_jimusho_name": "株式会社オリーブ",
         "torihikishi_jimusho_address": "神奈川県横浜市南区井土ケ谷中町161",
         "torihikishi_jimusho_address_2": "KSビル501",
-        "torihikishi_jimusho_tel": "045-308-7338"
+        "torihikishi_jimusho_tel": "045-308-7338",
+        "torihikishi_name": "白鳥 力"
       }
     },
     {
@@ -39,7 +40,8 @@
         "gyousha_tel": "045-367-8145",
         "torihikishi_jimusho_name": "合同会社UIエステート",
         "torihikishi_jimusho_address": "神奈川県横浜市港南区野庭町1716-3",
-        "torihikishi_jimusho_tel": "045-367-8145"
+        "torihikishi_jimusho_tel": "045-367-8145",
+        "torihikishi_name": "荒井 隼也"
       }
     },
     {
@@ -54,7 +56,8 @@
         "gyousha_tel": "045-751-4845",
         "torihikishi_jimusho_name": "小俣靴下株式会社",
         "torihikishi_jimusho_address": "神奈川県横浜市磯子区丸山2丁目14-3",
-        "torihikishi_jimusho_tel": "045-751-4845"
+        "torihikishi_jimusho_tel": "045-751-4845",
+        "torihikishi_name": "小俣 富樹"
       }
     }
   ]
