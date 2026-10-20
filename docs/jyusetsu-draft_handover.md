@@ -127,3 +127,11 @@
 - リリースPR #226(develop → main)を作成。**未マージ**(マージ=本番デプロイ)
 - 本番の作業は亀ちゃんの手順書 `docs/process/リリース手順_2026-10_招待と運営画面.md` のとおり。メール(SMTP)が先
 - この Claude の環境からは Vercel・Supabase に届かない(ネットワーク設定で拒否)。代わりにやらせるには、環境の設定で api.vercel.com・api.supabase.com を許可し、トークンを環境変数で渡す必要がある
+
+## 11. 2026-10-20 夜 本番リリース後
+
+- 亀ちゃんが #227 で develop → main をリリース(f04809c。中身は develop 091ce6a と同じ)。私の #226 は閉じられた
+- **注意: ryodelax 名義のコミットは Vercel のデプロイが BLOCKED になる**(Vercel のチームが Hobby で、長谷川さんがメンバーでないため)。
+  main へのマージ・リリースPRは亀ちゃん名義で出す。根本対策は Vercel Pro でメンバー追加か、移行(Cloud Run)
+- この Claude の環境からは本番サイト(jusetsu.ec-centric.com)にも届かない(ネットワーク設定で拒否)
+- 3社の登録は `docs/jyusetsu-onboarding/onboard-3-companies.sql` を長谷川さんが Supabase の SQL Editor で流す
